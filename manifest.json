@@ -1,9 +1,9 @@
 {
   "id": "plc-engineering-tools",
   "name": "PLC Engineering Tools",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minAppVersion": "1.5.0",
-  "description": "Engineering document wizards, ribbon menu, and project sidebar for Obsidian.",
+  "description": "Markdown-first engineering platform for requirements, verification and traceability.",
   "author": "Michael Vingerhoets",
   "isDesktopOnly": false
 }

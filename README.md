@@ -1,22 +1,29 @@
-# PLC Engineering Tools v0.2.0
+# PLC Engineering Tools
 
-## New in v0.2
+A Markdown-first engineering platform built initially as an Obsidian plugin.
 
-- Ribbon icon with quick-create menu
-- Right-side engineering sidebar
-- Live counts for requirements, tests, ADRs, components and draft documents
-- Expanded document wizard
-- Dropdown for engineering domains
-- Status, priority, parent/reference, description, rationale and acceptance fields
-- Sidebar refresh after creating a document
+## Development
 
-## Upgrade from v0.1
+```bash
+npm install
+npm run check
+npm run dev
+```
 
-1. Close Obsidian, or disable the plugin.
-2. Open `.obsidian/plugins/plc-engineering-tools` inside your Vault.
-3. Replace `main.js`, `manifest.json`, and `styles.css` with the v0.2 files.
-4. Restart Obsidian.
-5. Enable the plugin if needed.
-6. Click the wrench icon in the left ribbon and choose **Open engineering sidebar**.
+During development, copy or clone this repository into:
 
-Existing engineering documents are not modified.
+```text
+<Vault>/.obsidian/plugins/plc-engineering-tools
+```
+
+Then enable the plugin in Obsidian.
+
+## Current milestone
+
+Version 0.3 establishes the Engineering Core:
+
+- Vault scanning
+- metadata parsing
+- in-memory indexing
+- incremental file updates
+- automated tests and CI
