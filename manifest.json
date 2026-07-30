@@ -1,0 +1,9 @@
+{
+  "id": "plc-engineering-tools",
+  "name": "PLC Engineering Tools",
+  "version": "0.2.0",
+  "minAppVersion": "1.5.0",
+  "description": "Engineering document wizards, ribbon menu, and project sidebar for Obsidian.",
+  "author": "Michael Vingerhoets",
+  "isDesktopOnly": false
+}

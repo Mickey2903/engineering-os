@@ -1,0 +1,13 @@
+.plc-engineering-modal .setting-item-info { min-width: 12rem; }
+.plc-engineering-modal textarea { width: 100%; min-height: 7rem; }
+.plc-eng-sidebar { padding: 10px; }
+.plc-eng-sidebar h3 { margin: 8px 0 12px; }
+.plc-eng-actions { display: grid; gap: 8px; margin-bottom: 16px; }
+.plc-eng-actions button { width: 100%; }
+.plc-eng-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.plc-eng-stat { border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 10px; background: var(--background-secondary); }
+.plc-eng-stat strong { display: block; font-size: 1.35em; }
+.plc-eng-stat span { color: var(--text-muted); font-size: .85em; }
+.plc-eng-list { margin: 0; padding-left: 18px; }
+.plc-eng-list li { margin: 5px 0; }
+.plc-eng-muted { color: var(--text-muted); font-size: .9em; }
