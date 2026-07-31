@@ -158,3 +158,32 @@ describe("createSnapshot missing components", () => {
     expect(service.createSnapshot().missingComponentCount).toBe(1);
   });
 });
+
+describe("createSnapshot missing verifications", () => {
+  it("counts requirements without verifications", () => {
+    const database = new EngineeringDatabase();
+
+    database.upsert(requirement("REQ-001"));
+
+    database.upsert({
+      id: "VER-001",
+      title: "VER-001",
+      type: "verification",
+      status: "draft",
+      sourcePath: "Verifications/VER-001.md",
+      tags: [],
+      links: [],
+      metadata: {},
+      modifiedTime: 1,
+      requirementIds: ["REQ-001"],
+      method: "test",
+      result: "unknown",
+    });
+
+    database.upsert(requirement("REQ-002"));
+
+    const service = new TraceabilityService(database);
+
+    expect(service.createSnapshot().missingVerificationCount).toBe(1);
+  });
+});

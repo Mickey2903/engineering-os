@@ -71,7 +71,14 @@ export class TraceabilityService {
               (entity) => entity.type === "component",
             ),
         ).length,
-      missingVerificationCount: 0,
+      missingVerificationCount: this.database
+        .findByType("requirement")
+        .filter(
+          (requirement) =>
+            !this.findReachableEntities(requirement.id).some(
+              (entity) => entity.type === "verification",
+            ),
+        ).length,
     };
   }
 
