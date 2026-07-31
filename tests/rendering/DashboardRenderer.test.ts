@@ -24,4 +24,26 @@ describe("DashboardRenderer", () => {
 
     expect(markdown).toContain("# Engineering Dashboard");
   });
+
+  it("renders the health score", () => {
+    const renderer = new DashboardRenderer();
+
+    const markdown = renderer.render(
+      {
+        requirementCount: 0,
+        componentCount: 0,
+        verificationCount: 0,
+        riskCount: 0,
+        adrCount: 0,
+        brokenLinks: 0,
+        orphanRequirements: 0,
+        duplicateRelationships: 0,
+      },
+      {
+        healthScore: 87,
+      },
+    );
+
+    expect(markdown).toContain("87");
+  });
 });
