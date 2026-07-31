@@ -1,0 +1,102 @@
+import { describe, expect, it } from "vitest";
+
+import { EngineeringDatabase } from "../../src/database/EngineeringDatabase";
+import type { Component } from "../../src/models/Component";
+import type { Requirement } from "../../src/models/Requirement";
+import { TraceabilityService } from "../../src/services/TraceabilityService";
+
+const requirement = (id: string, links: readonly string[] = []): Requirement => ({
+  id,
+  title: id,
+  type: "requirement",
+  status: "draft",
+  sourcePath: `Requirements/${id}.md`,
+  tags: [],
+  links,
+  metadata: {},
+  modifiedTime: 1,
+  domain: "system",
+  priority: "medium",
+  acceptanceCriteria: [],
+});
+
+const component = (id: string): Component => ({
+  id,
+  title: id,
+  type: "component",
+  status: "draft",
+  sourcePath: `Components/${id}.md`,
+  tags: [],
+  links: [],
+  metadata: {},
+  modifiedTime: 1,
+  lifecycle: "active",
+});
+
+describe("TraceabilityService", () => {
+  it("finds all reachable engineering entities", () => {
+    const database = new EngineeringDatabase();
+
+    database.upsert(requirement("REQ-001", ["CMP-001"]));
+    database.upsert(component("CMP-001"));
+
+    const service = new TraceabilityService(database);
+
+    const reachable = service.findReachableEntities("REQ-001");
+
+    expect(reachable.map((entity) => entity.id)).toEqual(["CMP-001"]);
+  });
+
+  it("ignores relationships to missing entities", () => {
+    const database = new EngineeringDatabase();
+
+    database.upsert(requirement("REQ-001", ["UNKNOWN"]));
+
+    const service = new TraceabilityService(database);
+
+    expect(service.findReachableEntities("REQ-001")).toEqual([]);
+  });
+});
+
+it("finds the shortest path as engineering entities", () => {
+  const database = new EngineeringDatabase();
+
+  database.upsert(requirement("REQ-001", ["CMP-001"]));
+  database.upsert(component("CMP-001"));
+
+  const verification = {
+    id: "VER-001",
+    title: "VER-001",
+    type: "verification",
+    status: "draft",
+    sourcePath: "Verifications/VER-001.md",
+    tags: [],
+    links: [],
+    metadata: {},
+    modifiedTime: 1,
+    requirementIds: [],
+    componentIds: ["CMP-001"],
+    method: "test",
+    result: "unknown",
+  } as const;
+
+  database.upsert(verification);
+
+  const service = new TraceabilityService(database);
+
+  expect(service.findShortestPathEntities("REQ-001", "CMP-001").map((entity) => entity.id)).toEqual(
+    ["REQ-001", "CMP-001"],
+  );
+});
+
+it("returns an empty result when no path exists", () => {
+  const database = new EngineeringDatabase();
+
+  database.upsert(requirement("REQ-001", ["CMP-001"]));
+  database.upsert(component("CMP-001"));
+  database.upsert(component("CMP-999"));
+
+  const service = new TraceabilityService(database);
+
+  expect(service.findShortestPathEntities("REQ-001", "CMP-999")).toEqual([]);
+});

@@ -1,6 +1,10 @@
 import { Notice, Plugin, TFile } from "obsidian";
+import { RunHealthCheckCommand } from "./src/commands/RunHealthCheckCommand";
 import { EngineeringCore } from "./src/core/EngineeringCore";
 import { ConsoleLogger } from "./src/core/Logger";
+import { ObsidianReportWriter } from "./src/obsidian/ObsidianReportWriter";
+import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
+import { EngineeringServices } from "./src/services/EngineeringServices";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
   private core: EngineeringCore | undefined;
@@ -32,11 +36,52 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
       name: "Show engineering index status",
       callback: () => {
         const count = this.core?.database.count() ?? 0;
+
         new Notice(`Engineering index contains ${String(count)} Markdown documents.`);
       },
     });
 
+    this.addCommand({
+      id: "run-engineering-health-check",
+      name: "Run engineering health check",
+      callback: async () => {
+        await this.runHealthCheck(logger);
+      },
+    });
+
+    this.addRibbonIcon("activity", "Engineering Health Check", async () => {
+      await this.runHealthCheck(logger);
+    });
+
     logger.info("Plugin loaded.");
+  }
+
+  private async runHealthCheck(logger: ConsoleLogger): Promise<void> {
+    if (!this.core) {
+      new Notice("Engineering core is not available.");
+      return;
+    }
+
+    try {
+      const services = new EngineeringServices(this.core.database);
+      const writer = new ObsidianReportWriter(this.app.vault);
+
+      const command = new RunHealthCheckCommand(
+        services,
+        {
+          render: renderHealthReport,
+        },
+        writer,
+      );
+
+      await command.execute();
+
+      new Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
+    } catch (error: unknown) {
+      logger.error("Failed to generate engineering health report.", error);
+
+      new Notice("Failed to generate the engineering health report.");
+    }
   }
 
   public override onunload(): void {

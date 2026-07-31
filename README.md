@@ -1,29 +1,46 @@
 # PLC Engineering Tools
 
-A Markdown-first engineering platform built initially as an Obsidian plugin.
+![CI](https://github.com/Mickey2903/plc-engineering-tools/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/github/license/Mickey2903/plc-engineering-tools)
+![Version](https://img.shields.io/github/v/release/Mickey2903/plc-engineering-tools?include_prereleases)
+
+A **Markdown-first engineering platform** built as an Obsidian plugin
+for systems engineering, PLC development and technical documentation.
+
+## Features
+
+-   Engineering document parsing
+-   Engineering database
+-   Requirement traceability
+-   Impact analysis
+-   Engineering Health Check
+-   Markdown report generation
+-   Ribbon integration
+-   Obsidian commands
+-   Incremental vault scanning
+-   Automated testing
+-   GitHub Actions CI
 
 ## Development
 
-```bash
+Install dependencies:
+
+``` bash
 npm install
-npm run check
+```
+
+Verify the project:
+
+``` bash
+./scripts/verify.sh
+```
+
+Start development:
+
+``` bash
 npm run dev
 ```
 
-During development, copy or clone this repository into:
+## License
 
-```text
-<Vault>/.obsidian/plugins/plc-engineering-tools
-```
-
-Then enable the plugin in Obsidian.
-
-## Current milestone
-
-Version 0.3 establishes the Engineering Core:
-
-- Vault scanning
-- metadata parsing
-- in-memory indexing
-- incremental file updates
-- automated tests and CI
+MIT License

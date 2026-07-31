@@ -25,77 +25,254 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 
+// src/commands/RunHealthCheckCommand.ts
+var RunHealthCheckCommand = class {
+  constructor(services, renderer, writer) {
+    this.services = services;
+    this.renderer = renderer;
+    this.writer = writer;
+  }
+  async execute() {
+    const report = this.services.health.healthReport();
+    const markdown = this.renderer.render(report);
+    await this.writer.write("Engineering/Reports/Health Report.md", markdown);
+  }
+};
+
 // src/database/EngineeringDatabase.ts
 var EngineeringDatabase = class {
-  documentsById = /* @__PURE__ */ new Map();
+  entitiesById = /* @__PURE__ */ new Map();
   idByPath = /* @__PURE__ */ new Map();
-  upsert(document) {
-    const existingIdForPath = this.idByPath.get(document.sourcePath);
-    if (existingIdForPath && existingIdForPath !== document.id) {
-      this.documentsById.delete(existingIdForPath);
-    }
-    const existingDocument = this.documentsById.get(document.id);
-    if (existingDocument && existingDocument.sourcePath !== document.sourcePath) {
+  upsert(entity) {
+    const oldId = this.idByPath.get(entity.sourcePath);
+    if (oldId && oldId !== entity.id) this.entitiesById.delete(oldId);
+    const duplicate = this.entitiesById.get(entity.id);
+    if (duplicate && duplicate.sourcePath !== entity.sourcePath)
       throw new Error(
-        `Duplicate engineering ID "${document.id}" in "${existingDocument.sourcePath}" and "${document.sourcePath}".`
+        `Duplicate engineering ID "${entity.id}" in "${duplicate.sourcePath}" and "${entity.sourcePath}".`
       );
-    }
-    this.documentsById.set(document.id, document);
-    this.idByPath.set(document.sourcePath, document.id);
+    this.entitiesById.set(entity.id, entity);
+    this.idByPath.set(entity.sourcePath, entity.id);
   }
   removeByPath(path) {
     const id = this.idByPath.get(path);
     if (!id) return false;
     this.idByPath.delete(path);
-    return this.documentsById.delete(id);
+    return this.entitiesById.delete(id);
   }
   findById(id) {
-    return this.documentsById.get(id);
+    return this.entitiesById.get(id);
+  }
+  findByType(type) {
+    return this.all().filter((entity) => entity.type === type);
   }
   all() {
-    return [...this.documentsById.values()];
+    return [...this.entitiesById.values()];
   }
   count() {
-    return this.documentsById.size;
+    return this.entitiesById.size;
   }
   clear() {
-    this.documentsById.clear();
+    this.entitiesById.clear();
     this.idByPath.clear();
   }
 };
 
 // src/parser/MetadataParser.ts
-var supportedTypes = /* @__PURE__ */ new Set([
+var values = (...items) => new Set(items);
+var types = values(
   "requirement",
-  "verification",
   "component",
+  "verification",
   "adr",
   "risk",
-  "architecture"
-]);
-function asString(value) {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : void 0;
-}
-function parseType(value) {
-  const type = asString(value)?.toLowerCase();
-  return type && supportedTypes.has(type) ? type : "unknown";
-}
+  "architecture",
+  "interface",
+  "test-case",
+  "manufacturing-item",
+  "document"
+);
+var statuses = values(
+  "draft",
+  "proposed",
+  "approved",
+  "active",
+  "verified",
+  "rejected",
+  "deprecated",
+  "obsolete",
+  "closed",
+  "unknown"
+);
+var priorities = values("critical", "high", "medium", "low", "unknown");
+var domains = values(
+  "system",
+  "power",
+  "io",
+  "communication",
+  "control",
+  "firmware",
+  "software",
+  "mechanical",
+  "safety",
+  "security",
+  "manufacturing",
+  "verification",
+  "unknown"
+);
+var methods = values(
+  "analysis",
+  "inspection",
+  "demonstration",
+  "test",
+  "review",
+  "unknown"
+);
+var lifecycles = values(
+  "concept",
+  "prototype",
+  "active",
+  "not-recommended",
+  "end-of-life",
+  "obsolete",
+  "unknown"
+);
+var results = values(
+  "not-run",
+  "passed",
+  "failed",
+  "blocked",
+  "not-applicable",
+  "unknown"
+);
+var adrStatuses = values(
+  "proposed",
+  "accepted",
+  "rejected",
+  "superseded",
+  "deprecated",
+  "unknown"
+);
+var riskLevels = values("critical", "high", "medium", "low", "unknown");
+var riskStates = values("open", "mitigating", "accepted", "closed", "unknown");
+var text = (value) => typeof value === "string" && value.trim() ? value.trim() : void 0;
+var numberValue = (value) => typeof value === "number" && Number.isFinite(value) ? value : void 0;
+var list = (value) => {
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === "string").map((item) => item.trim()).filter((item) => item.length > 0);
+  }
+  const singleValue = text(value);
+  return singleValue ? [singleValue] : [];
+};
+var normalized = (value, allowed, fallback) => {
+  const candidate = text(value)?.toLowerCase();
+  if (!candidate) {
+    return fallback;
+  }
+  for (const allowedValue of allowed) {
+    if (allowedValue === candidate) {
+      return allowedValue;
+    }
+  }
+  return fallback;
+};
 var MetadataParser = class {
   parse(file, cache) {
-    const frontmatter = cache?.frontmatter ?? {};
-    const id = asString(frontmatter.id) ?? file.basename;
-    const title = asString(frontmatter.title) ?? file.basename;
-    const status = asString(frontmatter.status);
-    const links = (cache?.links ?? []).map((link) => link.link);
-    return {
-      id,
-      title,
-      type: parseType(frontmatter.type),
-      ...status ? { status } : {},
+    const fm = cache?.frontmatter ?? {};
+    const base = {
+      id: text(fm.id) ?? file.basename,
+      title: text(fm.title) ?? file.basename,
+      type: normalized(fm.type, types, "unknown"),
+      status: normalized(fm.status, statuses, "unknown"),
+      tags: list(fm.tags),
       sourcePath: file.path,
-      links,
-      metadata: { ...frontmatter },
-      modifiedTime: file.stat.mtime
+      links: (cache?.links ?? []).map((link) => link.link),
+      createdTime: file.stat.ctime,
+      modifiedTime: file.stat.mtime,
+      metadata: { ...fm }
+    };
+    switch (base.type) {
+      case "requirement":
+        return this.requirement(base, fm);
+      case "component":
+        return this.component(base, fm);
+      case "verification":
+        return this.verification(base, fm);
+      case "adr":
+        return this.adr(base, fm);
+      case "risk":
+        return this.risk(base, fm);
+      default:
+        return base;
+    }
+  }
+  requirement(base, fm) {
+    const description = text(fm.description);
+    const rationale = text(fm.rationale);
+    const verificationMethod = text(fm.verificationMethod);
+    const parentId = text(fm.parent);
+    return {
+      ...base,
+      type: "requirement",
+      domain: normalized(fm.domain, domains, "unknown"),
+      priority: normalized(fm.priority, priorities, "unknown"),
+      ...description ? { description } : {},
+      ...rationale ? { rationale } : {},
+      acceptanceCriteria: list(fm.acceptanceCriteria ?? fm.acceptance),
+      ...verificationMethod ? { verificationMethod: normalized(verificationMethod, methods, "unknown") } : {},
+      ...parentId ? { parentId } : {}
+    };
+  }
+  component(base, fm) {
+    const manufacturer = text(fm.manufacturer);
+    const partNumber = text(fm.partNumber);
+    const datasheet = text(fm.datasheet);
+    return {
+      ...base,
+      type: "component",
+      ...manufacturer ? { manufacturer } : {},
+      ...partNumber ? { partNumber } : {},
+      ...datasheet ? { datasheet } : {},
+      lifecycle: normalized(fm.lifecycle, lifecycles, "unknown")
+    };
+  }
+  verification(base, fm) {
+    return {
+      ...base,
+      type: "verification",
+      method: normalized(fm.method, methods, "unknown"),
+      requirementIds: list(fm.requirementIds ?? fm.requirements),
+      result: normalized(fm.result, results, "unknown")
+    };
+  }
+  adr(base, fm) {
+    const context = text(fm.context);
+    const decision = text(fm.decision);
+    const supersedesId = text(fm.supersedes);
+    return {
+      ...base,
+      type: "adr",
+      decisionStatus: normalized(fm.decisionStatus ?? fm.status, adrStatuses, "unknown"),
+      ...context ? { context } : {},
+      ...decision ? { decision } : {},
+      consequences: list(fm.consequences),
+      ...supersedesId ? { supersedesId } : {}
+    };
+  }
+  risk(base, fm) {
+    const probability = numberValue(fm.probability);
+    const impact = numberValue(fm.impact);
+    const mitigation = text(fm.mitigation);
+    const owner = text(fm.owner);
+    return {
+      ...base,
+      type: "risk",
+      ...probability !== void 0 ? { probability } : {},
+      ...impact !== void 0 ? { impact } : {},
+      level: normalized(fm.level, riskLevels, "unknown"),
+      riskState: normalized(fm.riskState ?? fm.state, riskStates, "unknown"),
+      ...mitigation ? { mitigation } : {},
+      ...owner ? { owner } : {}
     };
   }
 };
@@ -185,6 +362,382 @@ var ConsoleLogger = class {
   }
 };
 
+// src/obsidian/ObsidianReportWriter.ts
+var ObsidianReportWriter = class {
+  constructor(vault) {
+    this.vault = vault;
+  }
+  async write(path, content) {
+    const parts = path.split("/");
+    const fileName = parts.pop();
+    if (!fileName) {
+      throw new Error("Report path must contain a file name");
+    }
+    let currentFolder = "";
+    for (const folder of parts) {
+      currentFolder = currentFolder ? `${currentFolder}/${folder}` : folder;
+      if (!this.vault.getAbstractFileByPath(currentFolder)) {
+        await this.vault.createFolder(currentFolder);
+      }
+    }
+    const existingFile = this.vault.getAbstractFileByPath(path);
+    if (existingFile) {
+      await this.vault.modify(existingFile, content);
+      return;
+    }
+    await this.vault.create(path, content);
+  }
+};
+
+// src/rendering/HealthReportRenderer.ts
+function renderHealthReport(report) {
+  return [
+    "# Engineering Health Report",
+    "",
+    "## Summary",
+    "",
+    `- Broken links: ${String(report.brokenLinks.length)}`,
+    `- Orphan entities: ${String(report.orphanEntities.length)}`,
+    `- Entities without incoming links: ${String(report.entitiesWithoutIncomingLinks.length)}`,
+    `- Entities without outgoing links: ${String(report.entitiesWithoutOutgoingLinks.length)}`,
+    `- Duplicate relationships: ${String(report.duplicateRelationships.length)}`,
+    "",
+    "---",
+    "",
+    "## Broken links",
+    "",
+    renderBrokenLinks(report.brokenLinks),
+    "",
+    "## Orphan entities",
+    "",
+    renderEntities(report.orphanEntities, "No orphan entities found."),
+    "",
+    "## Entities without incoming links",
+    "",
+    renderEntities(
+      report.entitiesWithoutIncomingLinks,
+      "Every entity has at least one incoming link."
+    ),
+    "",
+    "## Entities without outgoing links",
+    "",
+    renderEntities(
+      report.entitiesWithoutOutgoingLinks,
+      "Every entity has at least one outgoing link."
+    ),
+    "",
+    "## Duplicate relationships",
+    "",
+    renderDuplicateRelationships(report.duplicateRelationships),
+    ""
+  ].join("\n");
+}
+function renderBrokenLinks(brokenLinks) {
+  if (brokenLinks.length === 0) {
+    return "No broken links found.";
+  }
+  return brokenLinks.map(
+    ({ entityId, brokenLinkId }) => `- \`${entityId}\` links to missing entity \`${brokenLinkId}\``
+  ).join("\n");
+}
+function renderEntities(entities, emptyMessage) {
+  if (entities.length === 0) {
+    return emptyMessage;
+  }
+  return entities.map((entity) => `- \`${entity.id}\` \u2014 ${entity.title}`).join("\n");
+}
+function renderDuplicateRelationships(relationships) {
+  if (relationships.length === 0) {
+    return "No duplicate relationships found.";
+  }
+  return relationships.map(({ sourceId, targetId }) => `- \`${sourceId}\` links multiple times to \`${targetId}\``).join("\n");
+}
+
+// src/services/HealthService.ts
+var HealthService = class {
+  constructor(database) {
+    this.database = database;
+  }
+  findOrphanEntities() {
+    const entities = this.database.all();
+    const linkedIds = new Set(entities.flatMap((entity) => entity.links));
+    return entities.filter((entity) => entity.links.length === 0 && !linkedIds.has(entity.id));
+  }
+  findEntitiesWithoutIncomingLinks() {
+    const entities = this.database.all();
+    const linkedIds = new Set(entities.flatMap((entity) => entity.links));
+    return entities.filter((entity) => !linkedIds.has(entity.id));
+  }
+  findEntitiesWithoutOutgoingLinks() {
+    return this.database.all().filter((entity) => entity.links.length === 0);
+  }
+  findDuplicateRelationships() {
+    return this.database.all().flatMap((entity) => {
+      const seenTargetIds = /* @__PURE__ */ new Set();
+      const duplicateTargetIds = /* @__PURE__ */ new Set();
+      for (const targetId of entity.links) {
+        if (seenTargetIds.has(targetId)) {
+          duplicateTargetIds.add(targetId);
+        } else {
+          seenTargetIds.add(targetId);
+        }
+      }
+      return [...duplicateTargetIds].map((targetId) => ({
+        sourceId: entity.id,
+        targetId
+      }));
+    });
+  }
+  healthReport() {
+    return {
+      brokenLinks: this.findBrokenLinks(),
+      orphanEntities: this.findOrphanEntities(),
+      entitiesWithoutIncomingLinks: this.findEntitiesWithoutIncomingLinks(),
+      entitiesWithoutOutgoingLinks: this.findEntitiesWithoutOutgoingLinks(),
+      duplicateRelationships: this.findDuplicateRelationships()
+    };
+  }
+  findBrokenLinks() {
+    return this.database.all().flatMap(
+      (entity) => entity.links.filter((linkedId) => this.database.findById(linkedId) === void 0).map((brokenLinkId) => ({
+        entityId: entity.id,
+        brokenLinkId
+      }))
+    );
+  }
+};
+
+// src/services/graph/GraphAlgorithms.ts
+var GraphAlgorithms = class {
+  constructor(graph) {
+    this.graph = graph;
+  }
+  findReachable(startId) {
+    if (!this.graph.hasNode(startId)) {
+      return [];
+    }
+    const visited = /* @__PURE__ */ new Set();
+    const queue = [startId];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (current === void 0 || visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+      for (const neighbor of this.graph.neighbors(current)) {
+        if (!visited.has(neighbor)) {
+          queue.push(neighbor);
+        }
+      }
+    }
+    visited.delete(startId);
+    return [...visited];
+  }
+  shortestPath(startId, targetId) {
+    if (startId === targetId) {
+      return [startId];
+    }
+    if (!this.graph.hasNode(startId) || !this.graph.hasNode(targetId)) {
+      return [];
+    }
+    const visited = /* @__PURE__ */ new Set([startId]);
+    const queue = [[startId]];
+    while (queue.length > 0) {
+      const currentPath = queue.shift();
+      if (currentPath === void 0) {
+        continue;
+      }
+      const currentId = currentPath[currentPath.length - 1];
+      if (currentId === void 0) {
+        continue;
+      }
+      for (const neighbor of this.graph.neighbors(currentId)) {
+        if (visited.has(neighbor)) {
+          continue;
+        }
+        const nextPath = [...currentPath, neighbor];
+        if (neighbor === targetId) {
+          return nextPath;
+        }
+        visited.add(neighbor);
+        queue.push(nextPath);
+      }
+    }
+    return [];
+  }
+  findAllPaths(startId, targetId) {
+    if (!this.graph.hasNode(startId) || !this.graph.hasNode(targetId)) {
+      return [];
+    }
+    const paths = [];
+    const visit = (currentId, currentPath, visited) => {
+      if (currentId === targetId) {
+        paths.push([...currentPath]);
+        return;
+      }
+      for (const neighbor of this.graph.neighbors(currentId)) {
+        if (visited.has(neighbor)) {
+          continue;
+        }
+        visit(neighbor, [...currentPath, neighbor], /* @__PURE__ */ new Set([...visited, neighbor]));
+      }
+    };
+    visit(startId, [startId], /* @__PURE__ */ new Set([startId]));
+    return paths;
+  }
+};
+
+// src/models/EngineeringEntity.ts
+var isVerification = (entity) => entity.type === "verification";
+var isAdr = (entity) => entity.type === "adr";
+
+// src/services/relationships/RelationshipGraph.ts
+var RelationshipGraph = class {
+  relationships;
+  outgoingMap = /* @__PURE__ */ new Map();
+  incomingMap = /* @__PURE__ */ new Map();
+  nodeIds = /* @__PURE__ */ new Set();
+  constructor(relationships) {
+    this.relationships = relationships;
+    const outgoing = /* @__PURE__ */ new Map();
+    const incoming = /* @__PURE__ */ new Map();
+    for (const relationship of relationships) {
+      this.nodeIds.add(relationship.sourceId);
+      this.nodeIds.add(relationship.targetId);
+      const outgoingRelationships = outgoing.get(relationship.sourceId) ?? [];
+      outgoingRelationships.push(relationship);
+      outgoing.set(relationship.sourceId, outgoingRelationships);
+      const incomingRelationships = incoming.get(relationship.targetId) ?? [];
+      incomingRelationships.push(relationship);
+      incoming.set(relationship.targetId, incomingRelationships);
+    }
+    for (const [id, values2] of outgoing) {
+      this.outgoingMap.set(id, values2);
+    }
+    for (const [id, values2] of incoming) {
+      this.incomingMap.set(id, values2);
+    }
+  }
+  all() {
+    return this.relationships;
+  }
+  outgoing(id) {
+    return this.outgoingMap.get(id) ?? [];
+  }
+  incoming(id) {
+    return this.incomingMap.get(id) ?? [];
+  }
+  hasNode(id) {
+    return this.nodeIds.has(id);
+  }
+  neighbors(id) {
+    return this.outgoing(id).map((relationship) => relationship.targetId);
+  }
+  hasRelationship(sourceId, targetId) {
+    return this.outgoing(sourceId).some((relationship) => relationship.targetId === targetId);
+  }
+};
+
+// src/services/RelationshipService.ts
+var RelationshipService = class {
+  constructor(database) {
+    this.database = database;
+  }
+  buildGraph() {
+    const relationships = [];
+    for (const entity of this.database.all()) {
+      for (const targetId of entity.links) {
+        relationships.push({
+          sourceId: entity.id,
+          targetId,
+          type: "link"
+        });
+      }
+      if (isVerification(entity)) {
+        for (const requirementId of entity.requirementIds) {
+          relationships.push({
+            sourceId: entity.id,
+            targetId: requirementId,
+            type: "verifies"
+          });
+          relationships.push({
+            sourceId: requirementId,
+            targetId: entity.id,
+            type: "verified-by"
+          });
+        }
+      }
+      if (isAdr(entity) && entity.supersedesId !== void 0) {
+        relationships.push({
+          sourceId: entity.id,
+          targetId: entity.supersedesId,
+          type: "supersedes"
+        });
+        relationships.push({
+          sourceId: entity.supersedesId,
+          targetId: entity.id,
+          type: "superseded-by"
+        });
+      }
+    }
+    return new RelationshipGraph(relationships);
+  }
+};
+
+// src/services/TraceabilityService.ts
+var TraceabilityService = class {
+  constructor(database) {
+    this.database = database;
+    this.relationships = new RelationshipService(database).buildGraph();
+  }
+  relationships;
+  findReachableEntities(entityId) {
+    const algorithms = new GraphAlgorithms(this.relationships);
+    return algorithms.findReachable(entityId).map((reachableId) => this.database.findById(reachableId)).filter((entity) => entity !== void 0);
+  }
+  findShortestPathEntities(sourceId, targetId) {
+    const algorithms = new GraphAlgorithms(this.relationships);
+    return algorithms.shortestPath(sourceId, targetId).map((entityId) => this.database.findById(entityId)).filter((entity) => entity !== void 0);
+  }
+  findDirectLinks(entityId) {
+    return this.relationships.outgoing(entityId).filter((relationship) => relationship.type === "link").map((relationship) => this.database.findById(relationship.targetId)).filter((entity) => entity !== void 0);
+  }
+  findBacklinks(entityId) {
+    return this.relationships.incoming(entityId).filter((relationship) => relationship.type === "link").map((relationship) => this.database.findById(relationship.sourceId)).filter((entity) => entity !== void 0);
+  }
+  findBrokenLinkIds(entityId) {
+    return this.relationships.outgoing(entityId).filter((relationship) => relationship.type === "link").map((relationship) => relationship.targetId).filter((targetId) => this.database.findById(targetId) === void 0);
+  }
+  hasDirectLink(sourceId, targetId) {
+    return this.relationships.outgoing(sourceId).some(
+      (relationship) => relationship.type === "link" && relationship.targetId === targetId
+    );
+  }
+};
+
+// src/services/ImpactAnalysisService.ts
+var ImpactAnalysisService = class {
+  traceability;
+  constructor(database) {
+    this.traceability = new TraceabilityService(database);
+  }
+  findImpactedEntities(entityId) {
+    return this.traceability.findReachableEntities(entityId);
+  }
+};
+
+// src/services/EngineeringServices.ts
+var EngineeringServices = class {
+  traceability;
+  health;
+  impactAnalysis;
+  constructor(database) {
+    this.traceability = new TraceabilityService(database);
+    this.health = new HealthService(database);
+    this.impactAnalysis = new ImpactAnalysisService(database);
+  }
+};
+
 // main.ts
 var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
   core;
@@ -214,7 +767,39 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
         new import_obsidian.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
       }
     });
+    this.addCommand({
+      id: "run-engineering-health-check",
+      name: "Run engineering health check",
+      callback: async () => {
+        await this.runHealthCheck(logger);
+      }
+    });
+    this.addRibbonIcon("activity", "Engineering Health Check", async () => {
+      await this.runHealthCheck(logger);
+    });
     logger.info("Plugin loaded.");
+  }
+  async runHealthCheck(logger) {
+    if (!this.core) {
+      new import_obsidian.Notice("Engineering core is not available.");
+      return;
+    }
+    try {
+      const services = new EngineeringServices(this.core.database);
+      const writer = new ObsidianReportWriter(this.app.vault);
+      const command = new RunHealthCheckCommand(
+        services,
+        {
+          render: renderHealthReport
+        },
+        writer
+      );
+      await command.execute();
+      new import_obsidian.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
+    } catch (error) {
+      logger.error("Failed to generate engineering health report.", error);
+      new import_obsidian.Notice("Failed to generate the engineering health report.");
+    }
   }
   onunload() {
     this.core?.shutdown();
