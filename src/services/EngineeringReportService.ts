@@ -7,6 +7,8 @@ import type { VerificationCoverageService } from "./VerificationCoverageService"
 import type { EngineeringIntelligenceService } from "./EngineeringIntelligenceService";
 import type { EngineeringMetricsHistoryService } from "./EngineeringMetricsHistoryService";
 import type { EngineeringTrendService } from "./EngineeringTrendService";
+import type { ImpactAnalysisService } from "./ImpactAnalysisService";
+import type { VerificationTraceabilityService } from "./VerificationTraceabilityService";
 
 import type { DashboardRenderer } from "../rendering/DashboardRenderer";
 import type { TraceabilityRenderer } from "../rendering/TraceabilityRenderer";
@@ -14,6 +16,8 @@ import type { RequirementQualityRenderer } from "../rendering/RequirementQuality
 import type { VerificationCoverageRenderer } from "../rendering/VerificationCoverageRenderer";
 import type { EngineeringIntelligenceRenderer } from "../rendering/EngineeringIntelligenceRenderer";
 import type { EngineeringTrendRenderer } from "../rendering/EngineeringTrendRenderer";
+import type { ImpactAnalysisRenderer } from "../rendering/ImpactAnalysisRenderer";
+import type { VerificationTraceabilityRenderer } from "../rendering/VerificationTraceabilityRenderer";
 
 import { renderHealthReport } from "../rendering/HealthReportRenderer";
 
@@ -25,6 +29,8 @@ export interface EngineeringReport {
   readonly verificationCoverage: string;
   readonly intelligence: string;
   readonly trend: string;
+  readonly impactAnalysis: string;
+  readonly verificationTraceability: string;
 }
 
 export class EngineeringReportService {
@@ -38,12 +44,16 @@ export class EngineeringReportService {
     private readonly intelligenceService: EngineeringIntelligenceService,
     private readonly metricsHistoryService: EngineeringMetricsHistoryService,
     private readonly trendService: EngineeringTrendService,
+    private readonly impactAnalysisService: ImpactAnalysisService,
+    private readonly verificationTraceabilityService: VerificationTraceabilityService,
     private readonly dashboardRenderer: DashboardRenderer,
     private readonly traceabilityRenderer: TraceabilityRenderer,
     private readonly requirementQualityRenderer: RequirementQualityRenderer,
     private readonly verificationCoverageRenderer: VerificationCoverageRenderer,
     private readonly intelligenceRenderer: EngineeringIntelligenceRenderer,
     private readonly trendRenderer: EngineeringTrendRenderer,
+    private readonly impactAnalysisRenderer: ImpactAnalysisRenderer,
+    private readonly verificationTraceabilityRenderer: VerificationTraceabilityRenderer,
   ) {}
 
   public generate(): EngineeringReport {
@@ -69,6 +79,16 @@ export class EngineeringReportService {
         this.metricsHistoryService.getHistory(),
       );
 
+    const impactReport =
+      this.impactAnalysisService.analyze(
+        "REQ-001",
+      );
+
+    const verificationTraceabilityReport =
+      this.verificationTraceabilityService.analyze(
+        ["REQ-001"],
+      );
+
     return {
       dashboard: this.dashboardRenderer.render(
         dashboardSnapshot,
@@ -92,6 +112,16 @@ export class EngineeringReportService {
         this.trendRenderer.render(
           trendReport,
           this.metricsHistoryService.getHistory(),
+        ),
+
+      impactAnalysis:
+        this.impactAnalysisRenderer.render(
+          impactReport,
+        ),
+
+      verificationTraceability:
+        this.verificationTraceabilityRenderer.render(
+          verificationTraceabilityReport,
         ),
     };
   }

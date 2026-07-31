@@ -1,51 +1,38 @@
 import { describe, expect, it } from "vitest";
 
-import { EngineeringDatabase } from "../../src/database/EngineeringDatabase";
-import type { Component } from "../../src/models/Component";
-import type { Requirement } from "../../src/models/Requirement";
 import { ImpactAnalysisService } from "../../src/services/ImpactAnalysisService";
-
-const requirement = (id: string, links: readonly string[] = []): Requirement => ({
-  id,
-  title: id,
-  type: "requirement",
-  status: "draft",
-  sourcePath: `Requirements/${id}.md`,
-  tags: [],
-  links,
-  metadata: {},
-  modifiedTime: 1,
-  domain: "system",
-  priority: "medium",
-  acceptanceCriteria: [],
-});
-
-const component = (id: string, links: readonly string[] = []): Component => ({
-  id,
-  title: id,
-  type: "component",
-  status: "draft",
-  sourcePath: `Components/${id}.md`,
-  tags: [],
-  links,
-  metadata: {},
-  modifiedTime: 1,
-  lifecycle: "active",
-});
+import { EngineeringRelationshipService } from "../../src/services/EngineeringRelationshipService";
 
 describe("ImpactAnalysisService", () => {
-  it("finds directly and indirectly impacted entities", () => {
-    const database = new EngineeringDatabase();
+  it("creates impact report from relationships", () => {
+    const relationships =
+      new EngineeringRelationshipService();
 
-    database.upsert(requirement("REQ-001", ["CMP-001"]));
-    database.upsert(component("CMP-001", ["CMP-002"]));
-    database.upsert(component("CMP-002"));
+    relationships.addLink({
+      id: "L1",
+      sourceId: "REQ-001",
+      targetId: "COMP-001",
+      type: "implements",
+      createdAt: "2026-07-31",
+    });
 
-    const service = new ImpactAnalysisService(database);
+    relationships.addLink({
+      id: "L2",
+      sourceId: "COMP-001",
+      targetId: "TEST-001",
+      type: "verifies",
+      createdAt: "2026-07-31",
+    });
 
-    expect(service.findImpactedEntities("REQ-001").map((entity) => entity.id)).toEqual([
-      "CMP-001",
-      "CMP-002",
-    ]);
+    const service =
+      new ImpactAnalysisService(
+        relationships,
+      );
+
+    const report =
+      service.analyze("REQ-001");
+
+    expect(report.affectedObjects)
+      .toContain("TEST-001");
   });
 });

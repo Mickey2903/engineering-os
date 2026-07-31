@@ -13,11 +13,15 @@ import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
 import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
 import { EngineeringIntelligenceRenderer } from "./src/rendering/EngineeringIntelligenceRenderer";
 import { EngineeringTrendRenderer } from "./src/rendering/EngineeringTrendRenderer";
+import { ImpactAnalysisRenderer } from "./src/rendering/ImpactAnalysisRenderer";
+import { VerificationTraceabilityRenderer } from "./src/rendering/VerificationTraceabilityRenderer";
 import { RequirementQualityRenderer } from "./src/rendering/RequirementQualityRenderer";
 import { VerificationCoverageRenderer } from "./src/rendering/VerificationCoverageRenderer";
 import { RequirementQualityService } from "./src/services/RequirementQualityService";
 import { VerificationCoverageService } from "./src/services/VerificationCoverageService";
 import { EngineeringServices } from "./src/services/EngineeringServices";
+import { ImpactAnalysisService } from "./src/services/ImpactAnalysisService";
+import { VerificationTraceabilityService } from "./src/services/VerificationTraceabilityService";
 import { ObsidianMetricsStorage } from "./src/obsidian/ObsidianMetricsStorage";
 import { EngineeringIntelligenceService } from "./src/services/EngineeringIntelligenceService";
 import { EngineeringMetricsHistoryService } from "./src/services/EngineeringMetricsHistoryService";
@@ -102,6 +106,20 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
       const database = this.core.database;
 
       const services = new EngineeringServices(database);
+      const intelligenceService =
+	  new EngineeringIntelligenceService(
+	    new DashboardService({
+	      getRequirements: () => database.findByType("requirement"),
+	      getComponents: () => database.findByType("component"),
+	      getVerifications: () => database.findByType("verification"),
+	      getRisks: () => database.findByType("risk"),
+	      getAdrs: () => database.findByType("adr"),
+	    }),
+	    new DashboardStatisticsService(),
+	    new RequirementQualityService(database),
+	    new VerificationCoverageService(database),
+	    services.traceability,
+	  );
 
       const reportService = new EngineeringReportService(
         new DashboardService({
@@ -131,12 +149,20 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
         ),
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
-        new DashboardRenderer(),
+	new ImpactAnalysisService(
+	  services.relationships,
+	),
+	new VerificationTraceabilityService(
+	  services.relationships,
+	),
+	new DashboardRenderer(),
         new TraceabilityRenderer(),
         new RequirementQualityRenderer(),
         new VerificationCoverageRenderer(),
         new EngineeringIntelligenceRenderer(),
         new EngineeringTrendRenderer(),
+	new ImpactAnalysisRenderer(),
+        new VerificationTraceabilityRenderer(),
       );
 
       const writer = new ObsidianReportWriter(this.app.vault);
@@ -146,19 +172,7 @@ const command = new GenerateEngineeringReportsCommand(
   writer,
   new EngineeringMetricsPersistenceService(
     new EngineeringMetricsSnapshotService(
-      new EngineeringIntelligenceService(
-        new DashboardService({
-          getRequirements: () => database.findByType("requirement"),
-          getComponents: () => database.findByType("component"),
-          getVerifications: () => database.findByType("verification"),
-          getRisks: () => database.findByType("risk"),
-          getAdrs: () => database.findByType("adr"),
-        }),
-        new DashboardStatisticsService(),
-        new RequirementQualityService(database),
-        new VerificationCoverageService(database),
-        services.traceability,
-      ),
+      intelligenceService,
     ),
     new EngineeringMetricsHistoryService(),
     new EngineeringMetricsStorageService(
@@ -167,7 +181,7 @@ const command = new GenerateEngineeringReportsCommand(
   ),
 );
 
-      await command.execute();
+await command.execute();
 
       new Notice("Engineering reports generated.");
     } catch (error: unknown) {

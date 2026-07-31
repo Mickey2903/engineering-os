@@ -23,6 +23,16 @@ export class EngineeringDatabase {
   public findById(id: string): EngineeringEntity | undefined {
     return this.entitiesById.get(id);
   }
+
+  public findByPath(path: string): EngineeringEntity | undefined {
+    const id = this.idByPath.get(path);
+
+    if (!id) {
+      return undefined;
+    }
+
+    return this.entitiesById.get(id);
+  }
   public findByType(type: EngineeringObjectType): readonly EngineeringEntity[] {
     return this.all().filter((entity) => entity.type === type);
   }

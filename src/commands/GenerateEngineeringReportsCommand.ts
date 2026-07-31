@@ -45,5 +45,15 @@ export class GenerateEngineeringReportsCommand {
       "Engineering/Reports/Engineering Trend Report.md",
       report.trend,
     );
+
+    await this.writer.write(
+      "Engineering/Reports/Impact Analysis Report.md",
+      report.impactAnalysis,
+    );
+
+    await this.writer.write(
+      "Engineering/Reports/Verification Traceability Matrix.md",
+      report.verificationTraceability,
+    );
   }
 }

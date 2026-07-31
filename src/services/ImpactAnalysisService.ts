@@ -1,15 +1,36 @@
-import type { EngineeringDatabase } from "../database/EngineeringDatabase";
-import type { EngineeringEntity } from "../models/EngineeringEntity";
-import { TraceabilityService } from "./TraceabilityService";
+import type { ImpactAnalysisReport } from "../models/ImpactAnalysisReport";
+import type { EngineeringRelationshipService } from "./EngineeringRelationshipService";
 
 export class ImpactAnalysisService {
-  private readonly traceability: TraceabilityService;
+  public constructor(
+    private readonly relationships: EngineeringRelationshipService,
+  ) {}
 
-  public constructor(database: EngineeringDatabase) {
-    this.traceability = new TraceabilityService(database);
-  }
+  public analyze(
+    objectId: string,
+  ): ImpactAnalysisReport {
+    const affected =
+      this.relationships.findImpact(objectId);
 
-  public findImpactedEntities(entityId: string): readonly EngineeringEntity[] {
-    return this.traceability.findReachableEntities(entityId);
+    return {
+      rootObjectId: objectId,
+
+      affectedObjects: affected,
+
+      affectedComponents:
+        affected.filter((id) =>
+          id.includes("COMP"),
+        ),
+
+      affectedRequirements:
+        affected.filter((id) =>
+          id.includes("REQ"),
+        ),
+
+      affectedTests:
+        affected.filter((id) =>
+          id.includes("TEST"),
+        ),
+    };
   }
 }
