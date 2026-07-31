@@ -114,3 +114,17 @@ describe("createSnapshot", () => {
     });
   });
 });
+
+describe("createSnapshot requirement count", () => {
+  it("counts requirements in the snapshot", () => {
+    const database = new EngineeringDatabase();
+
+    database.upsert(requirement("REQ-001"));
+    database.upsert(requirement("REQ-002"));
+    database.upsert(component("CMP-001"));
+
+    const service = new TraceabilityService(database);
+
+    expect(service.createSnapshot().requirementCount).toBe(2);
+  });
+});

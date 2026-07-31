@@ -59,7 +59,7 @@ export class TraceabilityService {
 
   public createSnapshot(): TraceabilitySnapshot {
     return {
-      requirementCount: 0,
+      requirementCount: this.database.findByType("requirement").length,
       tracedRequirementCount: 0,
       missingComponentCount: 0,
       missingVerificationCount: 0,
