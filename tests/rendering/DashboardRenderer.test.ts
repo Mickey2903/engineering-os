@@ -222,4 +222,26 @@ describe("DashboardRenderer", () => {
 
     expect(markdown).toContain("Broken links: 2");
   });
+
+  it("renders the orphan requirement count", () => {
+    const renderer = new DashboardRenderer();
+
+    const markdown = renderer.render(
+      {
+        requirementCount: 0,
+        componentCount: 0,
+        verificationCount: 0,
+        riskCount: 0,
+        adrCount: 0,
+        brokenLinks: 0,
+        orphanRequirements: 3,
+        duplicateRelationships: 0,
+      },
+      {
+        healthScore: 100,
+      },
+    );
+
+    expect(markdown).toContain("Orphan requirements: 3");
+  });
 });

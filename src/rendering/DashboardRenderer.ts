@@ -21,6 +21,7 @@ export class DashboardRenderer {
       "## Health Details",
       "",
       "Broken links: " + String(snapshot.brokenLinks),
+      "Orphan requirements: " + String(snapshot.orphanRequirements),
     ].join("\n");
   }
 }
