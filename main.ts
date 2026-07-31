@@ -29,6 +29,10 @@ import { EngineeringTrendService } from "./src/services/EngineeringTrendService"
 import { EngineeringMetricsPersistenceService } from "./src/services/EngineeringMetricsPersistenceService";
 import { EngineeringMetricsSnapshotService } from "./src/services/EngineeringMetricsSnapshotService";
 import { EngineeringMetricsStorageService } from "./src/services/EngineeringMetricsStorageService";
+import { GenerateProjectDashboardsCommand } from "./src/commands/GenerateProjectDashboardsCommand";
+import { EngineeringProjectRepository } from "./src/repositories/EngineeringProjectRepository";
+import { EngineeringProjectDashboardService } from "./src/services/EngineeringProjectDashboardService";
+import { EngineeringProjectDashboardRenderer } from "./src/rendering/EngineeringProjectDashboardRenderer";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
   private core: EngineeringCore | undefined;
@@ -80,6 +84,14 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
         await this.generateTraceabilityReport(logger);
       },
     });
+    
+    this.addCommand({
+	  id: "generate-project-dashboards",
+	  name: "Generate project dashboards",
+	  callback: async () => {
+	    await this.generateProjectDashboards(logger);
+	  },
+	});
 
     this.addCommand({
       id: "generate-engineering-reports",
@@ -240,6 +252,67 @@ await command.execute();
       new Notice("Failed to generate the traceability report.");
     }
   }
+  private async generateProjectDashboards(
+  logger: ConsoleLogger,
+): Promise<void> {
+new Notice("Starting project dashboard generation");
+  try {
+    const database =
+      this.core?.database;
+
+    if (!database) {
+      throw new Error(
+        "Engineering database is not initialized.",
+      );
+    }
+
+    const projects =
+  this.core?.projects;
+
+if (!projects) {
+  throw new Error(
+    "Project repository is not initialized.",
+  );
+}
+
+    const dashboardService =
+      new EngineeringProjectDashboardService(
+        database,
+        projects,
+      );
+
+    const renderer =
+      new EngineeringProjectDashboardRenderer();
+
+    const writer =
+      new ObsidianReportWriter(
+        this.app.vault,
+      );
+
+    const command =
+      new GenerateProjectDashboardsCommand(
+        projects,
+        dashboardService,
+        renderer,
+        writer,
+      );
+
+    await command.execute();
+
+    new Notice(
+      "Project dashboards generated.",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      "Failed to generate project dashboards.",
+      error,
+    );
+
+    new Notice(
+      "Failed to generate project dashboards.",
+    );
+  }
+}
 
   public override onunload(): void {
     this.core?.shutdown();

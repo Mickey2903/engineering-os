@@ -1,4 +1,4 @@
-import type { EngineeringDatabase } from "../database/EngineeringDatabase";
+import type { EngineeringDatabaseReader } from "../database/EngineeringDatabaseReader";
 import type { Requirement } from "../models/Requirement";
 import { isRequirement } from "../models/EngineeringEntity";
 import type { RequirementIssue } from "../models/RequirementIssue";
@@ -8,7 +8,7 @@ import type {
 } from "../models/RequirementQualityReport";
 
 export class RequirementQualityService {
-  public constructor(private readonly database: EngineeringDatabase) {}
+  public constructor(private readonly database: EngineeringDatabaseReader) {}
 
   public analyze(): RequirementQualityReport {
     const requirements = this.database

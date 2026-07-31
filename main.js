@@ -23,7 +23,7 @@ __export(main_exports, {
   default: () => PlcEngineeringToolsPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/commands/GenerateTraceabilityReportCommand.ts
 var GenerateTraceabilityReportCommand = class {
@@ -41,15 +41,42 @@ var GenerateTraceabilityReportCommand = class {
 
 // src/commands/GenerateEngineeringReportsCommand.ts
 var GenerateEngineeringReportsCommand = class {
-  constructor(reports, writer) {
+  constructor(reports, writer, metrics) {
     this.reports = reports;
     this.writer = writer;
+    this.metrics = metrics;
   }
   async execute() {
+    const date = (/* @__PURE__ */ new Date()).toISOString().split("T")[0] ?? "unknown";
+    await this.metrics.capture(date);
     const report = this.reports.generate();
     await this.writer.write("Engineering/Reports/Dashboard.md", report.dashboard);
     await this.writer.write("Engineering/Reports/Traceability Report.md", report.traceability);
     await this.writer.write("Engineering/Reports/Health Report.md", report.health);
+    await this.writer.write(
+      "Engineering/Reports/Requirement Quality Report.md",
+      report.requirementQuality
+    );
+    await this.writer.write(
+      "Engineering/Reports/Verification Coverage Report.md",
+      report.verificationCoverage
+    );
+    await this.writer.write(
+      "Engineering/Reports/Engineering Intelligence Dashboard.md",
+      report.intelligence
+    );
+    await this.writer.write(
+      "Engineering/Reports/Engineering Trend Report.md",
+      report.trend
+    );
+    await this.writer.write(
+      "Engineering/Reports/Impact Analysis Report.md",
+      report.impactAnalysis
+    );
+    await this.writer.write(
+      "Engineering/Reports/Verification Traceability Matrix.md",
+      report.verificationTraceability
+    );
   }
 };
 
@@ -119,23 +146,64 @@ function renderDuplicateRelationships(relationships) {
 
 // src/services/EngineeringReportService.ts
 var EngineeringReportService = class {
-  constructor(dashboardService, dashboardStatisticsService, traceabilityService, healthService, dashboardRenderer, traceabilityRenderer) {
+  constructor(dashboardService, dashboardStatisticsService, traceabilityService, healthService, requirementQualityService, verificationCoverageService, intelligenceService, metricsHistoryService, trendService, impactAnalysisService, verificationTraceabilityService, dashboardRenderer, traceabilityRenderer, requirementQualityRenderer, verificationCoverageRenderer, intelligenceRenderer, trendRenderer, impactAnalysisRenderer, verificationTraceabilityRenderer) {
     this.dashboardService = dashboardService;
     this.dashboardStatisticsService = dashboardStatisticsService;
     this.traceabilityService = traceabilityService;
     this.healthService = healthService;
+    this.requirementQualityService = requirementQualityService;
+    this.verificationCoverageService = verificationCoverageService;
+    this.intelligenceService = intelligenceService;
+    this.metricsHistoryService = metricsHistoryService;
+    this.trendService = trendService;
+    this.impactAnalysisService = impactAnalysisService;
+    this.verificationTraceabilityService = verificationTraceabilityService;
     this.dashboardRenderer = dashboardRenderer;
     this.traceabilityRenderer = traceabilityRenderer;
+    this.requirementQualityRenderer = requirementQualityRenderer;
+    this.verificationCoverageRenderer = verificationCoverageRenderer;
+    this.intelligenceRenderer = intelligenceRenderer;
+    this.trendRenderer = trendRenderer;
+    this.impactAnalysisRenderer = impactAnalysisRenderer;
+    this.verificationTraceabilityRenderer = verificationTraceabilityRenderer;
   }
   generate() {
     const dashboardSnapshot = this.dashboardService.createSnapshot();
     const dashboardStatistics = this.dashboardStatisticsService.calculate(dashboardSnapshot);
     const traceabilitySnapshot = this.traceabilityService.createSnapshot();
     const healthReport = this.healthService.healthReport();
+    const requirementQualityReport = this.requirementQualityService.analyze();
+    const verificationCoverageReport = this.verificationCoverageService.analyze();
+    const intelligenceReport = this.intelligenceService.analyze();
+    const trendReport = this.trendService.analyze(
+      this.metricsHistoryService.getHistory()
+    );
+    const impactReport = this.impactAnalysisService.analyze(
+      "REQ-001"
+    );
+    const verificationTraceabilityReport = this.verificationTraceabilityService.analyze(
+      ["REQ-001"]
+    );
     return {
-      dashboard: this.dashboardRenderer.render(dashboardSnapshot, dashboardStatistics),
+      dashboard: this.dashboardRenderer.render(
+        dashboardSnapshot,
+        dashboardStatistics
+      ),
       traceability: this.traceabilityRenderer.render(traceabilitySnapshot),
-      health: renderHealthReport(healthReport)
+      health: renderHealthReport(healthReport),
+      requirementQuality: this.requirementQualityRenderer.render(requirementQualityReport),
+      verificationCoverage: this.verificationCoverageRenderer.render(verificationCoverageReport),
+      intelligence: this.intelligenceRenderer.render(intelligenceReport),
+      trend: this.trendRenderer.render(
+        trendReport,
+        this.metricsHistoryService.getHistory()
+      ),
+      impactAnalysis: this.impactAnalysisRenderer.render(
+        impactReport
+      ),
+      verificationTraceability: this.verificationTraceabilityRenderer.render(
+        verificationTraceabilityReport
+      )
     };
   }
 };
@@ -273,8 +341,23 @@ var EngineeringDatabase = class {
   findById(id) {
     return this.entitiesById.get(id);
   }
+  findByPath(path) {
+    const id = this.idByPath.get(path);
+    if (!id) {
+      return void 0;
+    }
+    return this.entitiesById.get(id);
+  }
   findByType(type) {
     return this.all().filter((entity) => entity.type === type);
+  }
+  findByProject(projectId) {
+    return this.all().filter(
+      (entity) => entity.projectId === projectId
+    );
+  }
+  countByProject(projectId) {
+    return this.findByProject(projectId).length;
   }
   all() {
     return [...this.entitiesById.values()];
@@ -487,26 +570,64 @@ var MetadataParser = class {
   }
 };
 
+// src/parser/ProjectMetadataParser.ts
+var ProjectMetadataParser = class {
+  parse(metadata) {
+    if (metadata.type !== "project") {
+      return void 0;
+    }
+    if (typeof metadata.id !== "string" || typeof metadata.name !== "string") {
+      return void 0;
+    }
+    const project = {
+      id: metadata.id,
+      name: metadata.name,
+      projectType: typeof metadata.projectType === "string" ? metadata.projectType : "unknown",
+      status: typeof metadata.status === "string" ? metadata.status : "unknown",
+      ...typeof metadata.description === "string" ? {
+        description: metadata.description
+      } : {}
+    };
+    return project;
+  }
+};
+
 // src/scanner/VaultScanner.ts
 var VaultScanner = class {
-  constructor(vault, metadataCache, parser, database, logger) {
+  constructor(vault, metadataCache, parser, database, projects, logger) {
     this.vault = vault;
     this.metadataCache = metadataCache;
     this.parser = parser;
     this.database = database;
+    this.projects = projects;
     this.logger = logger;
   }
+  projectParser = new ProjectMetadataParser();
   scanFile(file) {
     if (file.extension !== "md") return;
     const metadata = this.metadataCache.getFileCache(file);
     const document = this.parser.parse(file, metadata);
     this.database.upsert(document);
+    const frontmatter = metadata?.frontmatter ?? {};
+    const project = this.projectParser.parse(frontmatter);
+    if (project) {
+      this.projects.add({
+        id: project.id,
+        name: project.name,
+        description: project.description ?? "",
+        type: project.projectType,
+        status: project.status,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
   }
   scanAll() {
     const files = this.vault.getMarkdownFiles();
     let indexed = 0;
     let errors = 0;
     this.database.clear();
+    this.projects.clear();
     for (const file of files) {
       try {
         this.scanFile(file);
@@ -523,27 +644,156 @@ var VaultScanner = class {
   }
 };
 
+// src/services/EngineeringRelationshipIndexer.ts
+var EngineeringRelationshipIndexer = class {
+  constructor(relationshipService) {
+    this.relationshipService = relationshipService;
+  }
+  indexObject(object) {
+    this.relationshipService.removeLinksForObject(
+      object.id
+    );
+    const metadata = object.metadata ?? {};
+    this.indexRelation(
+      object,
+      metadata.implements,
+      "implements"
+    );
+    this.indexRelation(
+      object,
+      metadata.verifies,
+      "verifies"
+    );
+    this.indexRelation(
+      object,
+      metadata.affects,
+      "affects"
+    );
+  }
+  indexRelation(object, targets, type) {
+    if (!Array.isArray(targets)) {
+      return;
+    }
+    for (const target of targets) {
+      if (typeof target !== "string") {
+        continue;
+      }
+      this.relationshipService.addLink({
+        id: `${object.id}-${type}-${target}`,
+        sourceId: object.id,
+        targetId: target,
+        type,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+  }
+};
+
+// src/services/EngineeringRelationshipService.ts
+var EngineeringRelationshipService = class {
+  links = [];
+  addLink(link) {
+    this.links.push(link);
+  }
+  getLinks() {
+    return this.links;
+  }
+  removeLinksForObject(id) {
+    const remaining = this.links.filter(
+      (link) => link.sourceId !== id && link.targetId !== id
+    );
+    this.links.length = 0;
+    this.links.push(...remaining);
+  }
+  getOutgoingLinks(id) {
+    return this.links.filter(
+      (link) => link.sourceId === id
+    );
+  }
+  getIncomingLinks(id) {
+    return this.links.filter(
+      (link) => link.targetId === id
+    );
+  }
+  findImpact(id) {
+    const visited = /* @__PURE__ */ new Set();
+    const queue = [id];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current || visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+      for (const link of this.getOutgoingLinks(current)) {
+        queue.push(link.targetId);
+      }
+    }
+    visited.delete(id);
+    return [...visited];
+  }
+};
+
+// src/repositories/EngineeringProjectRepository.ts
+var EngineeringProjectRepository = class {
+  projects = /* @__PURE__ */ new Map();
+  add(project) {
+    this.projects.set(
+      project.id,
+      project
+    );
+  }
+  remove(id) {
+    return this.projects.delete(id);
+  }
+  findById(id) {
+    return this.projects.get(id);
+  }
+  findAll() {
+    return [
+      ...this.projects.values()
+    ];
+  }
+  count() {
+    return this.projects.size;
+  }
+  clear() {
+    this.projects.clear();
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger) {
     this.app = app;
     this.logger = logger;
+    this.relationships = new EngineeringRelationshipService();
+    this.relationshipIndexer = new EngineeringRelationshipIndexer(
+      this.relationships
+    );
     this.scanner = new VaultScanner(
       app.vault,
       app.metadataCache,
       new MetadataParser(),
       this.database,
+      this.projects,
       logger
     );
   }
   database = new EngineeringDatabase();
+  projects = new EngineeringProjectRepository();
   scanner;
+  relationships;
+  relationshipIndexer;
   initialize() {
     const result = this.scanner.scanAll();
     this.logger.info("Initial Vault scan complete.", result);
   }
   updateFile(file) {
     this.scanner.scanFile(file);
+    const object = this.database.findByPath(file.path);
+    if (object) {
+      this.relationshipIndexer.indexObject(object);
+    }
   }
   removeFile(path) {
     this.scanner.remove(path);
@@ -643,6 +893,296 @@ var TraceabilityRenderer = class {
   }
 };
 
+// src/rendering/EngineeringIntelligenceRenderer.ts
+var EngineeringIntelligenceRenderer = class {
+  render(report) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Engineering Intelligence Dashboard");
+    builder.blank();
+    builder.section("Overall Maturity");
+    builder.blank();
+    builder.line(`Score: **${String(report.overallScore)}%**`);
+    builder.blank();
+    builder.section("Engineering Metrics");
+    builder.blank();
+    builder.line(`Health: **${String(report.healthScore)}%**`);
+    builder.line(
+      `Requirement Quality: **${String(report.requirementQualityScore)}%**`
+    );
+    builder.line(
+      `Verification Coverage: **${String(report.verificationCoverageScore)}%**`
+    );
+    builder.line(
+      `Traceability: **${String(report.traceabilityScore)}%**`
+    );
+    if (report.improvementAreas.length > 0) {
+      builder.blank();
+      builder.section("Improvement Areas");
+      builder.blank();
+      for (const area of report.improvementAreas) {
+        builder.bullet(
+          `${area.category} - ${area.message}`
+        );
+      }
+    }
+    builder.blank();
+    return builder.build();
+  }
+};
+
+// src/rendering/EngineeringTrendRenderer.ts
+var EngineeringTrendRenderer = class {
+  render(report, history) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Engineering Trend Report");
+    builder.blank();
+    builder.section("Current Maturity");
+    builder.blank();
+    builder.line(`Score: **${String(report.currentScore)}%**`);
+    builder.blank();
+    builder.section("Trend");
+    builder.blank();
+    builder.line(`Direction: **${report.direction}**`);
+    builder.line(`Change: **${String(report.scoreChange)}%**`);
+    builder.blank();
+    builder.section("Strongest Improvement");
+    builder.blank();
+    builder.line(report.strongestMetric);
+    builder.blank();
+    builder.section("History");
+    builder.blank();
+    for (const snapshot of history) {
+      builder.bullet(
+        `${snapshot.date}: ${String(snapshot.overallScore)}%`
+      );
+    }
+    return builder.build();
+  }
+};
+
+// src/rendering/ImpactAnalysisRenderer.ts
+var ImpactAnalysisRenderer = class {
+  render(report) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Impact Analysis Report");
+    builder.blank();
+    builder.section("Changed Object");
+    builder.line(
+      report.rootObjectId
+    );
+    builder.blank();
+    builder.section("Affected Objects");
+    for (const object of report.affectedObjects) {
+      builder.bullet(object);
+    }
+    builder.blank();
+    builder.section("Affected Components");
+    for (const component of report.affectedComponents) {
+      builder.bullet(component);
+    }
+    builder.blank();
+    builder.section("Affected Tests");
+    for (const test of report.affectedTests) {
+      builder.bullet(test);
+    }
+    return builder.build();
+  }
+};
+
+// src/rendering/VerificationTraceabilityRenderer.ts
+var VerificationTraceabilityRenderer = class {
+  render(entries) {
+    const lines = [];
+    lines.push("# Verification Traceability Matrix");
+    lines.push("");
+    lines.push(
+      "| Requirement | Components | Verification | Status |"
+    );
+    lines.push(
+      "|---|---|---|---|"
+    );
+    for (const entry of entries) {
+      const components = entry.componentIds.length > 0 ? entry.componentIds.join(", ") : "-";
+      const verifications = entry.verificationIds.length > 0 ? entry.verificationIds.join(", ") : "-";
+      const status = entry.status === "verified" ? "\u2705 Verified" : entry.status === "partial" ? "\u26A0 Partial" : "\u274C Missing";
+      lines.push(
+        `| ${entry.requirementId} | ${components} | ${verifications} | ${status} |`
+      );
+    }
+    return lines.join("\n");
+  }
+};
+
+// src/rendering/RequirementQualityRenderer.ts
+var RequirementQualityRenderer = class {
+  render(report) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Requirement Quality Report");
+    builder.blank();
+    builder.line(`Requirements: **${String(report.requirementCount)}**`);
+    builder.line(`Average quality score: **${String(report.averageScore)}%**`);
+    if (report.entries.length > 0) {
+      builder.blank();
+      builder.section("Requirements");
+      for (const entry of report.entries) {
+        builder.blank();
+        builder.line(`### ${entry.requirementId} \u2013 ${entry.title}`);
+        builder.line(`Score: **${String(entry.score)}%**`);
+        if (entry.issues.length === 0) {
+          builder.line("No issues found.");
+        } else {
+          builder.blank();
+          builder.line("Issues:");
+          for (const issue of entry.issues) {
+            builder.bullet(issue.message);
+          }
+        }
+      }
+    }
+    builder.blank();
+    return builder.build();
+  }
+};
+
+// src/rendering/VerificationCoverageRenderer.ts
+var VerificationCoverageRenderer = class {
+  render(report) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Verification Coverage Report");
+    builder.blank();
+    builder.line(`Requirements: **${String(report.requirementCount)}**`);
+    builder.line(
+      `Verified requirements: **${String(report.verifiedRequirementCount)}**`
+    );
+    builder.line(
+      `Coverage: **${String(report.coveragePercentage)}%**`
+    );
+    if (report.missingVerifications.length > 0) {
+      builder.blank();
+      builder.section("Missing verifications");
+      builder.blank();
+      for (const requirement of report.missingVerifications) {
+        builder.bullet(`${requirement.requirementId} \u2013 ${requirement.title}`);
+      }
+    }
+    builder.blank();
+    return builder.build();
+  }
+};
+
+// src/models/EngineeringEntity.ts
+var isRequirement = (entity) => entity.type === "requirement";
+var isVerification = (entity) => entity.type === "verification";
+var isAdr = (entity) => entity.type === "adr";
+
+// src/services/RequirementQualityService.ts
+var RequirementQualityService = class {
+  constructor(database) {
+    this.database = database;
+  }
+  analyze() {
+    const requirements = this.database.findByType("requirement").filter(isRequirement);
+    const entries = requirements.map(
+      (requirement) => this.analyzeRequirement(requirement)
+    );
+    const averageScore = entries.length === 0 ? 0 : Math.round(
+      entries.reduce((sum, entry) => sum + entry.score, 0) / entries.length
+    );
+    return {
+      requirementCount: requirements.length,
+      averageScore,
+      entries
+    };
+  }
+  analyzeRequirement(requirement) {
+    const issues = [];
+    let score = 100;
+    if (!requirement.description) {
+      score -= 10;
+      issues.push(this.issue(requirement, "missing-description", "Missing description."));
+    }
+    if (!requirement.rationale) {
+      score -= 10;
+      issues.push(this.issue(requirement, "missing-rationale", "Missing rationale."));
+    }
+    if (requirement.acceptanceCriteria.length === 0) {
+      score -= 25;
+      issues.push(
+        this.issue(
+          requirement,
+          "missing-acceptance-criteria",
+          "Missing acceptance criteria."
+        )
+      );
+    }
+    if (!requirement.verificationMethod) {
+      score -= 20;
+      issues.push(
+        this.issue(
+          requirement,
+          "missing-verification-method",
+          "Missing verification method."
+        )
+      );
+    }
+    const hasComponentLink = requirement.links.some(
+      (id) => this.database.findById(id)?.type === "component"
+    );
+    if (!hasComponentLink) {
+      score -= 20;
+      issues.push(
+        this.issue(
+          requirement,
+          "missing-component-link",
+          "Missing component link."
+        )
+      );
+    }
+    return {
+      requirementId: requirement.id,
+      title: requirement.title,
+      score: Math.max(0, score),
+      issues
+    };
+  }
+  issue(requirement, type, message) {
+    return {
+      requirementId: requirement.id,
+      title: requirement.title,
+      type,
+      message
+    };
+  }
+};
+
+// src/services/VerificationCoverageService.ts
+var VerificationCoverageService = class {
+  constructor(database) {
+    this.database = database;
+  }
+  analyze() {
+    const requirements = this.database.findByType("requirement").filter(isRequirement);
+    const missingVerifications = requirements.filter((requirement) => !this.hasVerification(requirement.id)).map((requirement) => ({
+      requirementId: requirement.id,
+      title: requirement.title
+    }));
+    const verifiedRequirementCount = requirements.length - missingVerifications.length;
+    const coveragePercentage = requirements.length === 0 ? 0 : Math.round(verifiedRequirementCount / requirements.length * 100);
+    return {
+      requirementCount: requirements.length,
+      verifiedRequirementCount,
+      missingVerificationCount: missingVerifications.length,
+      coveragePercentage,
+      missingVerifications
+    };
+  }
+  hasVerification(requirementId) {
+    return this.database.findByType("verification").some(
+      (verification) => verification.metadata.requirementIds instanceof Array ? verification.metadata.requirementIds.includes(requirementId) : false
+    );
+  }
+};
+
 // src/services/HealthService.ts
 var HealthService = class {
   constructor(database) {
@@ -694,6 +1234,29 @@ var HealthService = class {
         brokenLinkId
       }))
     );
+  }
+};
+
+// src/services/ImpactAnalysisService.ts
+var ImpactAnalysisService = class {
+  constructor(relationships) {
+    this.relationships = relationships;
+  }
+  analyze(objectId) {
+    const affected = this.relationships.findImpact(objectId);
+    return {
+      rootObjectId: objectId,
+      affectedObjects: affected,
+      affectedComponents: affected.filter(
+        (id) => id.includes("COMP")
+      ),
+      affectedRequirements: affected.filter(
+        (id) => id.includes("REQ")
+      ),
+      affectedTests: affected.filter(
+        (id) => id.includes("TEST")
+      )
+    };
   }
 };
 
@@ -776,10 +1339,6 @@ var GraphAlgorithms = class {
     return paths;
   }
 };
-
-// src/models/EngineeringEntity.ts
-var isVerification = (entity) => entity.type === "verification";
-var isAdr = (entity) => entity.type === "adr";
 
 // src/services/relationships/RelationshipGraph.ts
 var RelationshipGraph = class {
@@ -938,31 +1497,417 @@ var TraceabilityService = class {
   }
 };
 
-// src/services/ImpactAnalysisService.ts
-var ImpactAnalysisService = class {
-  traceability;
-  constructor(database) {
-    this.traceability = new TraceabilityService(database);
-  }
-  findImpactedEntities(entityId) {
-    return this.traceability.findReachableEntities(entityId);
-  }
-};
-
 // src/services/EngineeringServices.ts
 var EngineeringServices = class {
   traceability;
   health;
   impactAnalysis;
+  relationships;
   constructor(database) {
     this.traceability = new TraceabilityService(database);
     this.health = new HealthService(database);
-    this.impactAnalysis = new ImpactAnalysisService(database);
+    this.relationships = new EngineeringRelationshipService();
+    this.impactAnalysis = new ImpactAnalysisService(
+      this.relationships
+    );
+  }
+};
+
+// src/services/VerificationTraceabilityService.ts
+var VerificationTraceabilityService = class {
+  constructor(relationships) {
+    this.relationships = relationships;
+  }
+  analyze(requirementIds) {
+    return requirementIds.map((requirementId) => {
+      const components = this.relationships.getOutgoingLinks(requirementId).filter(
+        (link) => link.type === "implements"
+      ).map((link) => link.targetId);
+      const verifications = components.flatMap(
+        (componentId) => this.relationships.getOutgoingLinks(componentId).filter(
+          (link) => link.type === "verifies"
+        ).map((link) => link.targetId)
+      );
+      return {
+        requirementId,
+        componentIds: components,
+        verificationIds: verifications,
+        status: verifications.length > 0 ? "verified" : components.length > 0 ? "partial" : "missing"
+      };
+    });
+  }
+};
+
+// src/obsidian/ObsidianMetricsStorage.ts
+var import_obsidian = require("obsidian");
+var ObsidianMetricsStorage = class {
+  constructor(vault) {
+    this.vault = vault;
+  }
+  path = "Engineering/History/Engineering Metrics.json";
+  async read() {
+    const file = this.vault.getAbstractFileByPath(this.path);
+    if (!(file instanceof import_obsidian.TFile)) {
+      return void 0;
+    }
+    return this.vault.read(file);
+  }
+  async write(content) {
+    const existing = this.vault.getAbstractFileByPath(this.path);
+    if (existing instanceof import_obsidian.TFile) {
+      await this.vault.modify(existing, content);
+      return;
+    }
+    await this.vault.create(this.path, content);
+  }
+};
+
+// src/services/EngineeringIntelligenceService.ts
+var EngineeringIntelligenceService = class {
+  constructor(dashboardService, dashboardStatisticsService, requirementQualityService, verificationCoverageService, traceabilityService) {
+    this.dashboardService = dashboardService;
+    this.dashboardStatisticsService = dashboardStatisticsService;
+    this.requirementQualityService = requirementQualityService;
+    this.verificationCoverageService = verificationCoverageService;
+    this.traceabilityService = traceabilityService;
+  }
+  analyze() {
+    const dashboardSnapshot = this.dashboardService.createSnapshot();
+    const healthScore = this.dashboardStatisticsService.calculate(dashboardSnapshot).healthScore;
+    const requirementQuality = this.requirementQualityService.analyze();
+    const verificationCoverage = this.verificationCoverageService.analyze();
+    const traceability = this.traceabilityService.createSnapshot();
+    const requirementQualityScore = requirementQuality.averageScore;
+    const verificationCoverageScore = verificationCoverage.coveragePercentage;
+    const traceabilityScore = traceability.requirementCount === 0 ? 0 : Math.round(
+      traceability.tracedRequirementCount / traceability.requirementCount * 100
+    );
+    const overallScore = dashboardSnapshot.requirementCount === 0 ? 0 : Math.round(
+      (healthScore + requirementQualityScore + verificationCoverageScore + traceabilityScore) / 4
+    );
+    return {
+      overallScore,
+      healthScore,
+      requirementQualityScore,
+      verificationCoverageScore,
+      traceabilityScore,
+      improvementAreas: this.createImprovementAreas(
+        healthScore,
+        requirementQualityScore,
+        verificationCoverageScore,
+        traceabilityScore
+      )
+    };
+  }
+  createImprovementAreas(healthScore, requirementQualityScore, verificationCoverageScore, traceabilityScore) {
+    const areas = [];
+    if (healthScore < 90) {
+      areas.push({
+        category: "health",
+        message: "Engineering health issues detected.",
+        severity: "high"
+      });
+    }
+    if (requirementQualityScore < 70) {
+      areas.push({
+        category: "requirement-quality",
+        message: "Requirement quality is below target.",
+        severity: "medium"
+      });
+    }
+    if (verificationCoverageScore < 80) {
+      areas.push({
+        category: "verification",
+        message: "Verification coverage needs improvement.",
+        severity: "high"
+      });
+    }
+    if (traceabilityScore < 90) {
+      areas.push({
+        category: "traceability",
+        message: "Traceability coverage is incomplete.",
+        severity: "medium"
+      });
+    }
+    return areas;
+  }
+};
+
+// src/services/EngineeringMetricsHistoryService.ts
+var EngineeringMetricsHistoryService = class {
+  snapshots;
+  constructor(initialSnapshots = []) {
+    this.snapshots = [...initialSnapshots];
+  }
+  addSnapshot(snapshot) {
+    this.snapshots.push(snapshot);
+  }
+  getHistory() {
+    return this.snapshots;
+  }
+  latest() {
+    return this.snapshots.at(-1);
+  }
+};
+
+// src/services/EngineeringTrendService.ts
+var EngineeringTrendService = class {
+  analyze(history) {
+    if (history.length === 0) {
+      return {
+        currentScore: 0,
+        previousScore: 0,
+        scoreChange: 0,
+        direction: "stable",
+        strongestMetric: "none"
+      };
+    }
+    const current = history.at(-1);
+    if (!current) {
+      return {
+        currentScore: 0,
+        previousScore: 0,
+        scoreChange: 0,
+        direction: "stable",
+        strongestMetric: "none"
+      };
+    }
+    const previous = history.length > 1 ? history.at(-2) ?? current : current;
+    const scoreChange = current.overallScore - previous.overallScore;
+    return {
+      currentScore: current.overallScore,
+      previousScore: previous.overallScore,
+      scoreChange,
+      direction: scoreChange > 0 ? "improving" : scoreChange < 0 ? "declining" : "stable",
+      strongestMetric: this.findStrongestMetric(
+        current,
+        previous
+      )
+    };
+  }
+  findStrongestMetric(current, previous) {
+    const metrics = [
+      {
+        name: "Health",
+        change: current.healthScore - previous.healthScore
+      },
+      {
+        name: "Requirement Quality",
+        change: current.requirementQualityScore - previous.requirementQualityScore
+      },
+      {
+        name: "Verification Coverage",
+        change: current.verificationCoverageScore - previous.verificationCoverageScore
+      },
+      {
+        name: "Traceability",
+        change: current.traceabilityScore - previous.traceabilityScore
+      }
+    ];
+    const strongestMetric = metrics.sort(
+      (a, b) => b.change - a.change
+    )[0];
+    return strongestMetric?.name ?? "none";
+  }
+};
+
+// src/services/EngineeringMetricsPersistenceService.ts
+var EngineeringMetricsPersistenceService = class {
+  constructor(snapshotService, historyService, storageService) {
+    this.snapshotService = snapshotService;
+    this.historyService = historyService;
+    this.storageService = storageService;
+  }
+  async capture(date) {
+    const snapshot = this.snapshotService.createSnapshot(date);
+    this.historyService.addSnapshot(snapshot);
+    await this.storageService.save(
+      this.historyService.getHistory()
+    );
+  }
+};
+
+// src/services/EngineeringMetricsSnapshotService.ts
+var EngineeringMetricsSnapshotService = class {
+  constructor(intelligenceService) {
+    this.intelligenceService = intelligenceService;
+  }
+  createSnapshot(date) {
+    const report = this.intelligenceService.analyze();
+    return {
+      date,
+      overallScore: report.overallScore,
+      healthScore: report.healthScore,
+      requirementQualityScore: report.requirementQualityScore,
+      verificationCoverageScore: report.verificationCoverageScore,
+      traceabilityScore: report.traceabilityScore
+    };
+  }
+};
+
+// src/services/EngineeringMetricsStorageService.ts
+var EngineeringMetricsStorageService = class {
+  constructor(storage) {
+    this.storage = storage;
+  }
+  async save(history) {
+    await this.storage.write(
+      JSON.stringify(history, null, 2)
+    );
+  }
+  async load() {
+    const content = await this.storage.read();
+    if (!content) {
+      return [];
+    }
+    return JSON.parse(content);
+  }
+};
+
+// src/commands/GenerateProjectDashboardsCommand.ts
+var GenerateProjectDashboardsCommand = class {
+  constructor(projects, dashboards, renderer, writer) {
+    this.projects = projects;
+    this.dashboards = dashboards;
+    this.renderer = renderer;
+    this.writer = writer;
+  }
+  async execute() {
+    const projects = this.projects.findAll();
+    for (const project of projects) {
+      const dashboard = this.dashboards.generate(
+        project.id
+      );
+      const content = this.renderer.render(
+        dashboard
+      );
+      await this.writer.write(
+        `Engineering/Projects/${project.name}/Dashboard.md`,
+        content
+      );
+    }
+  }
+};
+
+// src/database/ProjectDatabaseView.ts
+var ProjectDatabaseView = class {
+  constructor(database, projectId) {
+    this.database = database;
+    this.projectId = projectId;
+  }
+  findByType(type) {
+    return this.database.findByProject(this.projectId).filter((entity) => entity.type === type);
+  }
+  findById(id) {
+    const entity = this.database.findById(id);
+    if (!entity || entity.projectId !== this.projectId) {
+      return void 0;
+    }
+    return entity;
+  }
+  all() {
+    return this.database.findByProject(
+      this.projectId
+    );
+  }
+  findByProject(projectId) {
+    if (projectId !== this.projectId) {
+      return [];
+    }
+    return this.all();
+  }
+};
+
+// src/services/EngineeringProjectDashboardService.ts
+var EngineeringProjectDashboardService = class {
+  constructor(database, projects) {
+    this.database = database;
+    this.projects = projects;
+  }
+  generate(projectId) {
+    const project = this.projects.findById(projectId);
+    if (!project) {
+      throw new Error(
+        `Project "${projectId}" not found.`
+      );
+    }
+    const projectDatabase = new ProjectDatabaseView(
+      this.database,
+      projectId
+    );
+    const entities = projectDatabase.all();
+    const requirementQuality = new RequirementQualityService(
+      projectDatabase
+    ).analyze();
+    const verificationCoverage = new VerificationCoverageService(
+      projectDatabase
+    ).analyze();
+    const traceability = new TraceabilityService(
+      projectDatabase
+    ).createSnapshot();
+    const health = new HealthService(
+      projectDatabase
+    ).healthReport();
+    return {
+      projectId,
+      projectName: project.name,
+      requirementCount: entities.filter(
+        (entity) => entity.type === "requirement"
+      ).length,
+      componentCount: entities.filter(
+        (entity) => entity.type === "component"
+      ).length,
+      verificationCount: entities.filter(
+        (entity) => entity.type === "verification"
+      ).length,
+      riskCount: entities.filter(
+        (entity) => entity.type === "risk"
+      ).length,
+      adrCount: entities.filter(
+        (entity) => entity.type === "adr"
+      ).length,
+      requirementQualityScore: requirementQuality.averageScore,
+      verificationCoverageScore: verificationCoverage.coveragePercentage,
+      traceabilityScore: traceability.requirementCount === 0 ? 0 : Math.round(
+        traceability.tracedRequirementCount / traceability.requirementCount * 100
+      ),
+      healthScore: Math.max(
+        0,
+        100 - health.brokenLinks.length - health.duplicateRelationships.length
+      )
+    };
+  }
+};
+
+// src/rendering/EngineeringProjectDashboardRenderer.ts
+var EngineeringProjectDashboardRenderer = class {
+  render(dashboard) {
+    return `# ${dashboard.projectName} Dashboard
+
+## Overview
+
+| Metric | Value |
+|---|---:|
+| Requirements | ${dashboard.requirementCount} |
+| Components | ${dashboard.componentCount} |
+| Verification | ${dashboard.verificationCount} |
+| Risks | ${dashboard.riskCount} |
+| ADRs | ${dashboard.adrCount} |
+
+## Engineering Quality
+
+| Metric | Score |
+|---|---:|
+| Requirement Quality | ${dashboard.requirementQualityScore}% |
+| Verification Coverage | ${dashboard.verificationCoverageScore}% |
+| Traceability | ${dashboard.traceabilityScore}% |
+| Health | ${dashboard.healthScore}% |
+`;
   }
 };
 
 // main.ts
-var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
+var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
   core;
   onload() {
     const logger = new ConsoleLogger("PLC Engineering Tools");
@@ -977,7 +1922,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
     );
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
-        if (file instanceof import_obsidian.TFile) {
+        if (file instanceof import_obsidian2.TFile) {
           this.core?.removeFile(file.path);
         }
       })
@@ -987,7 +1932,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
       name: "Show engineering index status",
       callback: () => {
         const count = this.core?.database.count() ?? 0;
-        new import_obsidian.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
+        new import_obsidian2.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
       }
     });
     this.addCommand({
@@ -1005,6 +1950,13 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
       }
     });
     this.addCommand({
+      id: "generate-project-dashboards",
+      name: "Generate project dashboards",
+      callback: async () => {
+        await this.generateProjectDashboards(logger);
+      }
+    });
+    this.addCommand({
       id: "generate-engineering-reports",
       name: "Generate engineering reports",
       callback: async () => {
@@ -1018,12 +1970,25 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
   }
   async generateEngineeringReports(logger) {
     if (!this.core) {
-      new import_obsidian.Notice("Engineering core is not available.");
+      new import_obsidian2.Notice("Engineering core is not available.");
       return;
     }
     try {
       const database = this.core.database;
       const services = new EngineeringServices(database);
+      const intelligenceService = new EngineeringIntelligenceService(
+        new DashboardService({
+          getRequirements: () => database.findByType("requirement"),
+          getComponents: () => database.findByType("component"),
+          getVerifications: () => database.findByType("verification"),
+          getRisks: () => database.findByType("risk"),
+          getAdrs: () => database.findByType("adr")
+        }),
+        new DashboardStatisticsService(),
+        new RequirementQualityService(database),
+        new VerificationCoverageService(database),
+        services.traceability
+      );
       const reportService = new EngineeringReportService(
         new DashboardService({
           getRequirements: () => database.findByType("requirement"),
@@ -1035,21 +2000,62 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
         new DashboardStatisticsService(),
         services.traceability,
         services.health,
+        new RequirementQualityService(database),
+        new VerificationCoverageService(database),
+        new EngineeringIntelligenceService(
+          new DashboardService({
+            getRequirements: () => database.findByType("requirement"),
+            getComponents: () => database.findByType("component"),
+            getVerifications: () => database.findByType("verification"),
+            getRisks: () => database.findByType("risk"),
+            getAdrs: () => database.findByType("adr")
+          }),
+          new DashboardStatisticsService(),
+          new RequirementQualityService(database),
+          new VerificationCoverageService(database),
+          services.traceability
+        ),
+        new EngineeringMetricsHistoryService(),
+        new EngineeringTrendService(),
+        new ImpactAnalysisService(
+          services.relationships
+        ),
+        new VerificationTraceabilityService(
+          services.relationships
+        ),
         new DashboardRenderer(),
-        new TraceabilityRenderer()
+        new TraceabilityRenderer(),
+        new RequirementQualityRenderer(),
+        new VerificationCoverageRenderer(),
+        new EngineeringIntelligenceRenderer(),
+        new EngineeringTrendRenderer(),
+        new ImpactAnalysisRenderer(),
+        new VerificationTraceabilityRenderer()
       );
       const writer = new ObsidianReportWriter(this.app.vault);
-      const command = new GenerateEngineeringReportsCommand(reportService, writer);
+      const command = new GenerateEngineeringReportsCommand(
+        reportService,
+        writer,
+        new EngineeringMetricsPersistenceService(
+          new EngineeringMetricsSnapshotService(
+            intelligenceService
+          ),
+          new EngineeringMetricsHistoryService(),
+          new EngineeringMetricsStorageService(
+            new ObsidianMetricsStorage(this.app.vault)
+          )
+        )
+      );
       await command.execute();
-      new import_obsidian.Notice("Engineering reports generated.");
+      new import_obsidian2.Notice("Engineering reports generated.");
     } catch (error) {
       logger.error("Failed to generate engineering reports.", error);
-      new import_obsidian.Notice("Failed to generate engineering reports.");
+      new import_obsidian2.Notice("Failed to generate engineering reports.");
     }
   }
   async runHealthCheck(logger) {
     if (!this.core) {
-      new import_obsidian.Notice("Engineering core is not available.");
+      new import_obsidian2.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -1063,15 +2069,15 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
         writer
       );
       await command.execute();
-      new import_obsidian.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
+      new import_obsidian2.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
     } catch (error) {
       logger.error("Failed to generate engineering health report.", error);
-      new import_obsidian.Notice("Failed to generate the engineering health report.");
+      new import_obsidian2.Notice("Failed to generate the engineering health report.");
     }
   }
   async generateTraceabilityReport(logger) {
     if (!this.core) {
-      new import_obsidian.Notice("Engineering core is not available.");
+      new import_obsidian2.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -1080,10 +2086,53 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
       const writer = new ObsidianReportWriter(this.app.vault);
       const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
       await command.execute();
-      new import_obsidian.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
+      new import_obsidian2.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
     } catch (error) {
       logger.error("Failed to generate traceability report.", error);
-      new import_obsidian.Notice("Failed to generate the traceability report.");
+      new import_obsidian2.Notice("Failed to generate the traceability report.");
+    }
+  }
+  async generateProjectDashboards(logger) {
+    new import_obsidian2.Notice("Starting project dashboard generation");
+    try {
+      const database = this.core?.database;
+      if (!database) {
+        throw new Error(
+          "Engineering database is not initialized."
+        );
+      }
+      const projects = this.core?.projects;
+      if (!projects) {
+        throw new Error(
+          "Project repository is not initialized."
+        );
+      }
+      const dashboardService = new EngineeringProjectDashboardService(
+        database,
+        projects
+      );
+      const renderer = new EngineeringProjectDashboardRenderer();
+      const writer = new ObsidianReportWriter(
+        this.app.vault
+      );
+      const command = new GenerateProjectDashboardsCommand(
+        projects,
+        dashboardService,
+        renderer,
+        writer
+      );
+      await command.execute();
+      new import_obsidian2.Notice(
+        "Project dashboards generated."
+      );
+    } catch (error) {
+      logger.error(
+        "Failed to generate project dashboards.",
+        error
+      );
+      new import_obsidian2.Notice(
+        "Failed to generate project dashboards."
+      );
     }
   }
   onunload() {

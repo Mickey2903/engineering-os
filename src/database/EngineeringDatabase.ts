@@ -36,6 +36,20 @@ export class EngineeringDatabase {
   public findByType(type: EngineeringObjectType): readonly EngineeringEntity[] {
     return this.all().filter((entity) => entity.type === type);
   }
+
+  public findByProject(
+    projectId: string,
+  ): readonly EngineeringEntity[] {
+    return this.all().filter(
+      (entity) => entity.projectId === projectId,
+    );
+  }
+
+  public countByProject(
+    projectId: string,
+  ): number {
+    return this.findByProject(projectId).length;
+  }
   public all(): readonly EngineeringEntity[] {
     return [...this.entitiesById.values()];
   }

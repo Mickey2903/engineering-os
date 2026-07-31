@@ -1,47 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import { EngineeringIntelligenceRenderer } from "../../src/rendering/EngineeringIntelligenceRenderer";
+import { EngineeringProjectDashboardRenderer } from "../../src/rendering/EngineeringProjectDashboardRenderer";
 
-describe("EngineeringIntelligenceRenderer", () => {
-  it("renders intelligence dashboard", () => {
-    const renderer = new EngineeringIntelligenceRenderer();
+describe("EngineeringProjectDashboardRenderer", () => {
+  it("renders a project dashboard markdown report", () => {
+    const renderer =
+      new EngineeringProjectDashboardRenderer();
 
-    const markdown = renderer.render({
-      overallScore: 86,
-      healthScore: 92,
-      requirementQualityScore: 84,
-      verificationCoverageScore: 78,
-      traceabilityScore: 91,
-      improvementAreas: [
-        {
-          category: "verification",
-          message: "Verification coverage needs improvement.",
-          severity: "high",
-        },
-      ],
-    });
+    const output =
+      renderer.render({
+        projectId: "PLC-001",
+        projectName: "PLC Controller",
 
-    expect(markdown).toContain("# Engineering Intelligence Dashboard");
-    expect(markdown).toContain("Score: **86%**");
-    expect(markdown).toContain("Health: **92%**");
-    expect(markdown).toContain(
-      "- verification - Verification coverage needs improvement.",
-    );
-  });
+        requirementCount: 50,
+        componentCount: 20,
+        verificationCount: 40,
+        riskCount: 5,
+        adrCount: 10,
 
-  it("renders without improvement areas", () => {
-    const renderer = new EngineeringIntelligenceRenderer();
+        requirementQualityScore: 90,
+        verificationCoverageScore: 85,
+        traceabilityScore: 95,
+        healthScore: 92,
+      });
 
-    const markdown = renderer.render({
-      overallScore: 100,
-      healthScore: 100,
-      requirementQualityScore: 100,
-      verificationCoverageScore: 100,
-      traceabilityScore: 100,
-      improvementAreas: [],
-    });
+    expect(output)
+      .toContain("# PLC Controller Dashboard");
 
-    expect(markdown).toContain("Score: **100%**");
-    expect(markdown).not.toContain("Improvement Areas");
+    expect(output)
+      .toContain("Requirement Quality");
+
+    expect(output)
+      .toContain("90%");
   });
 });

@@ -5,9 +5,12 @@ import { VaultScanner } from "../scanner/VaultScanner";
 import { EngineeringRelationshipIndexer } from "../services/EngineeringRelationshipIndexer";
 import { EngineeringRelationshipService } from "../services/EngineeringRelationshipService";
 import type { Logger } from "./Logger";
+import { EngineeringProjectRepository } from "../repositories/EngineeringProjectRepository";
 
 export class EngineeringCore {
   public readonly database = new EngineeringDatabase();
+  public readonly projects = new EngineeringProjectRepository();
+
   private readonly scanner: VaultScanner;
   public readonly relationships: EngineeringRelationshipService;
   private readonly relationshipIndexer: EngineeringRelationshipIndexer;
@@ -25,12 +28,13 @@ export class EngineeringCore {
       );
 
     this.scanner = new VaultScanner(
-      app.vault,
-      app.metadataCache,
-      new MetadataParser(),
-      this.database,
-      logger,
-    );
+  app.vault,
+  app.metadataCache,
+  new MetadataParser(),
+  this.database,
+  this.projects,
+  logger,
+);
   }
 
   public initialize(): void {

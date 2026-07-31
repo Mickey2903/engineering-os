@@ -1,4 +1,4 @@
-import type { EngineeringDatabase } from "../database/EngineeringDatabase";
+import type { EngineeringDatabaseReader } from "../database/EngineeringDatabaseReader";
 import type { EngineeringEntity } from "../models/EngineeringEntity";
 import type { Relationship } from "../models/Relationship";
 import type { Requirement } from "../models/Requirement";
@@ -9,7 +9,7 @@ import { RelationshipService } from "./RelationshipService";
 export class TraceabilityService {
   private readonly relationships;
 
-  public constructor(private readonly database: EngineeringDatabase) {
+  public constructor(private readonly database: EngineeringDatabaseReader) {
     this.relationships = new RelationshipService(database).buildGraph();
   }
 

@@ -1,4 +1,4 @@
-import type { EngineeringDatabase } from "../database/EngineeringDatabase";
+import type { EngineeringDatabaseReader } from "../database/EngineeringDatabaseReader";
 import type { EngineeringEntity } from "../models/EngineeringEntity";
 
 export interface BrokenLink {
@@ -20,7 +20,7 @@ export interface HealthReport {
 }
 
 export class HealthService {
-  public constructor(private readonly database: EngineeringDatabase) {}
+  public constructor(private readonly database: EngineeringDatabaseReader) {}
 
   public findOrphanEntities(): readonly EngineeringEntity[] {
     const entities = this.database.all();

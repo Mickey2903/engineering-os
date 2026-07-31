@@ -34,4 +34,5 @@ export interface EngineeringObject {
   readonly createdTime?: number;
   readonly modifiedTime: number;
   readonly metadata: Readonly<Record<string, unknown>>;
+  readonly projectId?: string;
 }

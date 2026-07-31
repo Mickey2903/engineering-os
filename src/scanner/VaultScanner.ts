@@ -2,6 +2,8 @@ import type { MetadataCache, TFile, Vault } from "obsidian";
 import type { Logger } from "../core/Logger";
 import type { EngineeringDatabase } from "../database/EngineeringDatabase";
 import type { MetadataParser } from "../parser/MetadataParser";
+import type { EngineeringProjectRepository } from "../repositories/EngineeringProjectRepository";
+import { ProjectMetadataParser } from "../parser/ProjectMetadataParser";
 
 export interface ScanResult {
   readonly scanned: number;
@@ -10,21 +12,52 @@ export interface ScanResult {
 }
 
 export class VaultScanner {
-  public constructor(
-    private readonly vault: Vault,
-    private readonly metadataCache: MetadataCache,
-    private readonly parser: MetadataParser,
-    private readonly database: EngineeringDatabase,
-    private readonly logger: Logger,
-  ) {}
+  private readonly projectParser = new ProjectMetadataParser();
+
+public constructor(
+  private readonly vault: Vault,
+  private readonly metadataCache: MetadataCache,
+  private readonly parser: MetadataParser,
+  private readonly database: EngineeringDatabase,
+  private readonly projects: EngineeringProjectRepository,
+  private readonly logger: Logger,
+) {}
 
   public scanFile(file: TFile): void {
-    if (file.extension !== "md") return;
+  if (file.extension !== "md") return;
 
-    const metadata = this.metadataCache.getFileCache(file);
-    const document = this.parser.parse(file, metadata);
-    this.database.upsert(document);
+  const metadata =
+    this.metadataCache.getFileCache(file);
+
+  const document =
+    this.parser.parse(file, metadata);
+
+  this.database.upsert(document);
+
+  const frontmatter =
+    (metadata?.frontmatter ?? {}) as Record<string, unknown>;
+
+  const project =
+    this.projectParser.parse(frontmatter);
+
+  if (project) {
+    this.projects.add({
+      id: project.id,
+      name: project.name,
+      description: project.description ?? "",
+      type: project.projectType,
+      status:
+        project.status as
+          | "concept"
+          | "development"
+          | "testing"
+          | "production"
+          | "archived",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
+}
 
   public scanAll(): ScanResult {
     const files = this.vault.getMarkdownFiles();
@@ -32,6 +65,7 @@ export class VaultScanner {
     let errors = 0;
 
     this.database.clear();
+    this.projects.clear();
 
     for (const file of files) {
       try {

@@ -1,10 +1,10 @@
-import type { EngineeringDatabase } from "../database/EngineeringDatabase";
+import type { EngineeringDatabaseReader } from "../database/EngineeringDatabaseReader";
 import { isAdr, isVerification } from "../models/EngineeringEntity";
 import type { Relationship } from "../models/Relationship";
 import { RelationshipGraph } from "./relationships/RelationshipGraph";
 
 export class RelationshipService {
-  public constructor(private readonly database: EngineeringDatabase) {}
+  public constructor(private readonly database: EngineeringDatabaseReader) {}
 
   public buildGraph(): RelationshipGraph {
     const relationships: Relationship[] = [];

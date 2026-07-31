@@ -1,9 +1,9 @@
 import { isRequirement } from "../models/EngineeringEntity";
-import type { EngineeringDatabase } from "../database/EngineeringDatabase";
+import type { EngineeringDatabaseReader } from "../database/EngineeringDatabaseReader";
 import type { VerificationCoverageReport } from "../models/VerificationCoverageReport";
 
 export class VerificationCoverageService {
-  public constructor(private readonly database: EngineeringDatabase) {}
+  public constructor(private readonly database: EngineeringDatabaseReader) {}
 
   public analyze(): VerificationCoverageReport {
     const requirements = this.database
