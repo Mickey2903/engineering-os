@@ -17,6 +17,8 @@ export class DashboardRenderer {
       "Verifications: " + String(snapshot.verificationCount),
       "Risks: " + String(snapshot.riskCount),
       "ADRs: " + String(snapshot.adrCount),
+      "",
+      "## Health Details",
     ].join("\n");
   }
 }
