@@ -27,4 +27,12 @@ describe("MarkdownReportBuilder", () => {
 
     expect(builder.build()).toBe("- REQ-001");
   });
+
+  it("renders metrics", () => {
+    const builder = new MarkdownReportBuilder();
+
+    builder.metric("Requirements", 42);
+
+    expect(builder.build()).toBe("Requirements: **42**");
+  });
 });

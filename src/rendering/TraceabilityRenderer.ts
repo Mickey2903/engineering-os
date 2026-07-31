@@ -36,10 +36,10 @@ export class TraceabilityRenderer {
     builder.heading("Traceability Report");
     builder.blank();
 
-    builder.line(`Requirements: **${String(snapshot.requirementCount)}**`);
-    builder.line(`Traced requirements: **${String(snapshot.tracedRequirementCount)}**`);
-    builder.line(`Missing components: **${String(snapshot.missingComponentCount)}**`);
-    builder.line(`Missing verifications: **${String(snapshot.missingVerificationCount)}**`);
+    builder.metric("Requirements", snapshot.requirementCount);
+    builder.metric("Traced requirements", snapshot.tracedRequirementCount);
+    builder.metric("Missing components", snapshot.missingComponentCount);
+    builder.metric("Missing verifications", snapshot.missingVerificationCount);
     builder.line(this.renderCoverage(snapshot));
 
     if (snapshot.missingComponents.length > 0) {

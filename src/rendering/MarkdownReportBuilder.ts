@@ -17,6 +17,10 @@ export class MarkdownReportBuilder {
     this.lines.push(`- ${text}`);
   }
 
+  public metric(label: string, value: string | number): void {
+    this.lines.push(`${label}: **${String(value)}**`);
+  }
+
   public blank(): void {
     this.lines.push("");
   }
