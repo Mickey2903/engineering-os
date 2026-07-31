@@ -1,0 +1,12 @@
+import type { DashboardSnapshot } from "../models/DashboardSnapshot";
+import type { DashboardStatistics } from "../models/DashboardStatistics";
+
+export class DashboardStatisticsService {
+  public calculate(snapshot: DashboardSnapshot): DashboardStatistics {
+    void snapshot;
+
+    return {
+      healthScore: 100,
+    };
+  }
+}

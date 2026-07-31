@@ -9,35 +9,35 @@ for systems engineering, PLC development and technical documentation.
 
 ## Features
 
--   Engineering document parsing
--   Engineering database
--   Requirement traceability
--   Impact analysis
--   Engineering Health Check
--   Markdown report generation
--   Ribbon integration
--   Obsidian commands
--   Incremental vault scanning
--   Automated testing
--   GitHub Actions CI
+- Engineering document parsing
+- Engineering database
+- Requirement traceability
+- Impact analysis
+- Engineering Health Check
+- Markdown report generation
+- Ribbon integration
+- Obsidian commands
+- Incremental vault scanning
+- Automated testing
+- GitHub Actions CI
 
 ## Development
 
 Install dependencies:
 
-``` bash
+```bash
 npm install
 ```
 
 Verify the project:
 
-``` bash
+```bash
 ./scripts/verify.sh
 ```
 
 Start development:
 
-``` bash
+```bash
 npm run dev
 ```
 
