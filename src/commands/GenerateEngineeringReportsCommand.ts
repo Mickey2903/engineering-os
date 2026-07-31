@@ -28,5 +28,15 @@ export class GenerateEngineeringReportsCommand {
       "Engineering/Reports/Verification Coverage Report.md",
       report.verificationCoverage,
     );
+
+    await this.writer.write(
+      "Engineering/Reports/Engineering Intelligence Dashboard.md",
+      report.intelligence,
+    );
+
+    await this.writer.write(
+      "Engineering/Reports/Engineering Intelligence Dashboard.md",
+      report.intelligence,
+    );
   }
 }
