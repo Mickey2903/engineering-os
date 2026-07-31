@@ -10,6 +10,8 @@ export class DashboardRenderer {
       "",
       "Health score: " + String(statistics.healthScore),
       "",
+      "## Engineering Overview",
+      "",
       "Requirements: " + String(snapshot.requirementCount),
       "Components: " + String(snapshot.componentCount),
       "Verifications: " + String(snapshot.verificationCount),
