@@ -19,6 +19,8 @@ export class DashboardRenderer {
       "ADRs: " + String(snapshot.adrCount),
       "",
       "## Health Details",
+      "",
+      "Broken links: " + String(snapshot.brokenLinks),
     ].join("\n");
   }
 }

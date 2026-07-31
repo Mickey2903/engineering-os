@@ -200,4 +200,26 @@ describe("DashboardRenderer", () => {
 
     expect(markdown).toContain("## Health Details");
   });
+
+  it("renders the broken link count", () => {
+    const renderer = new DashboardRenderer();
+
+    const markdown = renderer.render(
+      {
+        requirementCount: 0,
+        componentCount: 0,
+        verificationCount: 0,
+        riskCount: 0,
+        adrCount: 0,
+        brokenLinks: 2,
+        orphanRequirements: 0,
+        duplicateRelationships: 0,
+      },
+      {
+        healthScore: 100,
+      },
+    );
+
+    expect(markdown).toContain("Broken links: 2");
+  });
 });
