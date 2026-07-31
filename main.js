@@ -708,6 +708,37 @@ var TraceabilityService = class {
   findBrokenLinkIds(entityId) {
     return this.relationships.outgoing(entityId).filter((relationship) => relationship.type === "link").map((relationship) => relationship.targetId).filter((targetId) => this.database.findById(targetId) === void 0);
   }
+  createSnapshot() {
+    return {
+      requirementCount: this.countRequirements(),
+      tracedRequirementCount: this.database.findByType("requirement").filter((requirement) => this.findReachableEntities(requirement.id).length > 0).length,
+      missingComponentCount: this.countMissingComponents(),
+      missingVerificationCount: this.countMissingVerifications()
+    };
+  }
+  requirements() {
+    return this.database.findByType("requirement");
+  }
+  countRequirements() {
+    return this.requirements().length;
+  }
+  countTracedRequirements() {
+    return this.requirements().filter(
+      (requirement) => this.findReachableEntities(requirement.id).length > 0
+    ).length;
+  }
+  countMissingComponents() {
+    return this.requirements().filter(
+      (requirement) => !this.findReachableEntities(requirement.id).some((entity) => entity.type === "component")
+    ).length;
+  }
+  countMissingVerifications() {
+    return this.requirements().filter(
+      (requirement) => !this.findReachableEntities(requirement.id).some(
+        (entity) => entity.type === "verification"
+      )
+    ).length;
+  }
   hasDirectLink(sourceId, targetId) {
     return this.relationships.outgoing(sourceId).some(
       (relationship) => relationship.type === "link" && relationship.targetId === targetId

@@ -3,3 +3,6 @@ coverage/
 *.log
 .env
 .DS_Store
+
+*.bak
+*.bak-*
