@@ -14,6 +14,7 @@ export class DashboardRenderer {
       "Components: " + String(snapshot.componentCount),
       "Verifications: " + String(snapshot.verificationCount),
       "Risks: " + String(snapshot.riskCount),
+      "ADRs: " + String(snapshot.adrCount),
     ].join("\n");
   }
 }
