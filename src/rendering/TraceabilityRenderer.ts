@@ -14,6 +14,21 @@ export class TraceabilityRenderer {
     return `Coverage: **${String(coverage)}%**`;
   }
 
+  private renderMissingComponents(snapshot: TraceabilitySnapshot): readonly string[] {
+    if (snapshot.missingComponents.length === 0) {
+      return [];
+    }
+
+    return [
+      "",
+      "## Requirements without components",
+      "",
+      ...snapshot.missingComponents.map(
+        (requirement) => `- ${requirement.id} – ${requirement.title}`,
+      ),
+    ];
+  }
+
   public render(snapshot: TraceabilitySnapshot): string {
     return [
       this.renderHeading(),
@@ -23,6 +38,7 @@ export class TraceabilityRenderer {
       `Missing components: **${String(snapshot.missingComponentCount)}**`,
       `Missing verifications: **${String(snapshot.missingVerificationCount)}**`,
       this.renderCoverage(snapshot),
+      ...this.renderMissingComponents(snapshot),
       "",
     ].join("\n");
   }

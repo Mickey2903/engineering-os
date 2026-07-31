@@ -98,3 +98,35 @@ it("renders the coverage percentage", () => {
 
   expect(markdown).toContain("Coverage: **75%**");
 });
+
+it("renders requirements without components", () => {
+  const snapshot: TraceabilitySnapshot = {
+    requirementCount: 2,
+    tracedRequirementCount: 1,
+    missingComponentCount: 1,
+    missingVerificationCount: 0,
+    missingComponents: [
+      {
+        id: "REQ-002",
+        type: "requirement",
+        title: "Emergency stop",
+        status: "approved",
+        tags: [],
+        sourcePath: "Requirements/REQ-002.md",
+        links: [],
+        modifiedTime: 1,
+        metadata: {},
+        domain: "safety",
+        priority: "critical",
+        acceptanceCriteria: [],
+      },
+    ],
+  };
+
+  const renderer = new TraceabilityRenderer();
+
+  const markdown = renderer.render(snapshot);
+
+  expect(markdown).toContain("## Requirements without components");
+  expect(markdown).toContain("- REQ-002 – Emergency stop");
+});
