@@ -19,4 +19,12 @@ describe("MarkdownReportBuilder", () => {
 
     expect(builder.build()).toBe("## Overview");
   });
+
+  it("renders bullet items", () => {
+    const builder = new MarkdownReportBuilder();
+
+    builder.bullet("REQ-001");
+
+    expect(builder.build()).toBe("- REQ-001");
+  });
 });

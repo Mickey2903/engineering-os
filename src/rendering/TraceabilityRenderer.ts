@@ -48,7 +48,7 @@ export class TraceabilityRenderer {
       builder.blank();
 
       for (const requirement of snapshot.missingComponents) {
-        builder.line(`- ${requirement.id} – ${requirement.title}`);
+        builder.bullet(`${requirement.id} – ${requirement.title}`);
       }
     }
 

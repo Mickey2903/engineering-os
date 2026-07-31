@@ -13,6 +13,10 @@ export class MarkdownReportBuilder {
     this.lines.push(`## ${title}`);
   }
 
+  public bullet(text: string): void {
+    this.lines.push(`- ${text}`);
+  }
+
   public blank(): void {
     this.lines.push("");
   }
