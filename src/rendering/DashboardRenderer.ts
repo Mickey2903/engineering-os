@@ -13,6 +13,7 @@ export class DashboardRenderer {
       "Requirements: " + String(snapshot.requirementCount),
       "Components: " + String(snapshot.componentCount),
       "Verifications: " + String(snapshot.verificationCount),
+      "Risks: " + String(snapshot.riskCount),
     ].join("\n");
   }
 }
