@@ -12,12 +12,19 @@ import { ObsidianReportWriter } from "./src/obsidian/ObsidianReportWriter";
 import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
 import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
 import { EngineeringIntelligenceRenderer } from "./src/rendering/EngineeringIntelligenceRenderer";
+import { EngineeringTrendRenderer } from "./src/rendering/EngineeringTrendRenderer";
 import { RequirementQualityRenderer } from "./src/rendering/RequirementQualityRenderer";
 import { VerificationCoverageRenderer } from "./src/rendering/VerificationCoverageRenderer";
 import { RequirementQualityService } from "./src/services/RequirementQualityService";
 import { VerificationCoverageService } from "./src/services/VerificationCoverageService";
 import { EngineeringServices } from "./src/services/EngineeringServices";
+import { ObsidianMetricsStorage } from "./src/obsidian/ObsidianMetricsStorage";
 import { EngineeringIntelligenceService } from "./src/services/EngineeringIntelligenceService";
+import { EngineeringMetricsHistoryService } from "./src/services/EngineeringMetricsHistoryService";
+import { EngineeringTrendService } from "./src/services/EngineeringTrendService";
+import { EngineeringMetricsPersistenceService } from "./src/services/EngineeringMetricsPersistenceService";
+import { EngineeringMetricsSnapshotService } from "./src/services/EngineeringMetricsSnapshotService";
+import { EngineeringMetricsStorageService } from "./src/services/EngineeringMetricsStorageService";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
   private core: EngineeringCore | undefined;
@@ -122,16 +129,43 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
           new VerificationCoverageService(database),
           services.traceability,
         ),
+        new EngineeringMetricsHistoryService(),
+        new EngineeringTrendService(),
         new DashboardRenderer(),
         new TraceabilityRenderer(),
         new RequirementQualityRenderer(),
         new VerificationCoverageRenderer(),
         new EngineeringIntelligenceRenderer(),
+        new EngineeringTrendRenderer(),
       );
 
       const writer = new ObsidianReportWriter(this.app.vault);
 
-      const command = new GenerateEngineeringReportsCommand(reportService, writer);
+const command = new GenerateEngineeringReportsCommand(
+  reportService,
+  writer,
+  new EngineeringMetricsPersistenceService(
+    new EngineeringMetricsSnapshotService(
+      new EngineeringIntelligenceService(
+        new DashboardService({
+          getRequirements: () => database.findByType("requirement"),
+          getComponents: () => database.findByType("component"),
+          getVerifications: () => database.findByType("verification"),
+          getRisks: () => database.findByType("risk"),
+          getAdrs: () => database.findByType("adr"),
+        }),
+        new DashboardStatisticsService(),
+        new RequirementQualityService(database),
+        new VerificationCoverageService(database),
+        services.traceability,
+      ),
+    ),
+    new EngineeringMetricsHistoryService(),
+    new EngineeringMetricsStorageService(
+      new ObsidianMetricsStorage(this.app.vault),
+    ),
+  ),
+);
 
       await command.execute();
 
