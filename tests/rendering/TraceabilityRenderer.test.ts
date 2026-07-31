@@ -77,3 +77,18 @@ it("renders the missing verification count", () => {
 
   expect(markdown).toContain("Missing verifications: **1**");
 });
+
+it("renders the coverage percentage", () => {
+  const snapshot = {
+    requirementCount: 8,
+    tracedRequirementCount: 6,
+    missingComponentCount: 1,
+    missingVerificationCount: 1,
+  };
+
+  const renderer = new TraceabilityRenderer();
+
+  const markdown = renderer.render(snapshot);
+
+  expect(markdown).toContain("Coverage: **75%**");
+});
