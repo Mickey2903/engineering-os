@@ -32,3 +32,18 @@ it("renders the requirement count", () => {
 
   expect(markdown).toContain("Requirements: **12**");
 });
+
+it("renders the traced requirement count", () => {
+  const snapshot = {
+    requirementCount: 12,
+    tracedRequirementCount: 9,
+    missingComponentCount: 2,
+    missingVerificationCount: 1,
+  };
+
+  const renderer = new TraceabilityRenderer();
+
+  const markdown = renderer.render(snapshot);
+
+  expect(markdown).toContain("Traced requirements: **9**");
+});

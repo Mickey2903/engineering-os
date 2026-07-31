@@ -6,6 +6,7 @@ export class TraceabilityRenderer {
       "# Traceability Report",
       "",
       `Requirements: **${String(snapshot.requirementCount)}**`,
+      `Traced requirements: **${String(snapshot.tracedRequirementCount)}**`,
       "",
     ].join("\n");
   }
