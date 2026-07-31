@@ -19,7 +19,8 @@ export class DashboardStatisticsService {
       0,
       100 -
         snapshot.brokenLinks * DEFAULT_WEIGHTS.brokenLinkPenalty -
-        snapshot.orphanRequirements * DEFAULT_WEIGHTS.orphanRequirementPenalty,
+        snapshot.orphanRequirements * DEFAULT_WEIGHTS.orphanRequirementPenalty -
+        snapshot.duplicateRelationships * DEFAULT_WEIGHTS.duplicateRelationshipPenalty,
     );
 
     return {

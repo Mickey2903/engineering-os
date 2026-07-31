@@ -55,4 +55,22 @@ describe("DashboardStatisticsService", () => {
 
     expect(statistics.healthScore).toBe(94);
   });
+
+  it("subtracts two points per duplicate relationship", () => {
+    const service = new DashboardStatisticsService();
+
+    const statistics = service.calculate({
+      requirementCount: 10,
+      componentCount: 5,
+      verificationCount: 8,
+      riskCount: 2,
+      adrCount: 3,
+
+      brokenLinks: 0,
+      orphanRequirements: 0,
+      duplicateRelationships: 3,
+    });
+
+    expect(statistics.healthScore).toBe(94);
+  });
 });
