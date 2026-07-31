@@ -25,6 +25,20 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 
+// src/commands/GenerateTraceabilityReportCommand.ts
+var GenerateTraceabilityReportCommand = class {
+  constructor(services, renderer, writer) {
+    this.services = services;
+    this.renderer = renderer;
+    this.writer = writer;
+  }
+  async execute() {
+    const snapshot = this.services.traceability.createSnapshot();
+    const markdown = this.renderer.render(snapshot);
+    await this.writer.write("Engineering/Reports/Traceability Report.md", markdown);
+  }
+};
+
 // src/commands/RunHealthCheckCommand.ts
 var RunHealthCheckCommand = class {
   constructor(services, renderer, writer) {
@@ -453,6 +467,29 @@ function renderDuplicateRelationships(relationships) {
   return relationships.map(({ sourceId, targetId }) => `- \`${sourceId}\` links multiple times to \`${targetId}\``).join("\n");
 }
 
+// src/rendering/TraceabilityRenderer.ts
+var TraceabilityRenderer = class {
+  renderHeading() {
+    return "# Traceability Report";
+  }
+  renderCoverage(snapshot) {
+    const coverage = snapshot.requirementCount === 0 ? 0 : Math.round(snapshot.tracedRequirementCount / snapshot.requirementCount * 100);
+    return `Coverage: **${String(coverage)}%**`;
+  }
+  render(snapshot) {
+    return [
+      this.renderHeading(),
+      "",
+      `Requirements: **${String(snapshot.requirementCount)}**`,
+      `Traced requirements: **${String(snapshot.tracedRequirementCount)}**`,
+      `Missing components: **${String(snapshot.missingComponentCount)}**`,
+      `Missing verifications: **${String(snapshot.missingVerificationCount)}**`,
+      this.renderCoverage(snapshot),
+      ""
+    ].join("\n");
+  }
+};
+
 // src/services/HealthService.ts
 var HealthService = class {
   constructor(database) {
@@ -805,6 +842,13 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
         await this.runHealthCheck(logger);
       }
     });
+    this.addCommand({
+      id: "generate-traceability-report",
+      name: "Generate traceability report",
+      callback: async () => {
+        await this.generateTraceabilityReport(logger);
+      }
+    });
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);
     });
@@ -830,6 +874,23 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
     } catch (error) {
       logger.error("Failed to generate engineering health report.", error);
       new import_obsidian.Notice("Failed to generate the engineering health report.");
+    }
+  }
+  async generateTraceabilityReport(logger) {
+    if (!this.core) {
+      new import_obsidian.Notice("Engineering core is not available.");
+      return;
+    }
+    try {
+      const services = new EngineeringServices(this.core.database);
+      const renderer = new TraceabilityRenderer();
+      const writer = new ObsidianReportWriter(this.app.vault);
+      const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
+      await command.execute();
+      new import_obsidian.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
+    } catch (error) {
+      logger.error("Failed to generate traceability report.", error);
+      new import_obsidian.Notice("Failed to generate the traceability report.");
     }
   }
   onunload() {

@@ -1,9 +1,11 @@
 import { Notice, Plugin, TFile } from "obsidian";
+import { GenerateTraceabilityReportCommand } from "./src/commands/GenerateTraceabilityReportCommand";
 import { RunHealthCheckCommand } from "./src/commands/RunHealthCheckCommand";
 import { EngineeringCore } from "./src/core/EngineeringCore";
 import { ConsoleLogger } from "./src/core/Logger";
 import { ObsidianReportWriter } from "./src/obsidian/ObsidianReportWriter";
 import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
+import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
 import { EngineeringServices } from "./src/services/EngineeringServices";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
@@ -49,6 +51,14 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: "generate-traceability-report",
+      name: "Generate traceability report",
+      callback: async () => {
+        await this.generateTraceabilityReport(logger);
+      },
+    });
+
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);
     });
@@ -81,6 +91,29 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
       logger.error("Failed to generate engineering health report.", error);
 
       new Notice("Failed to generate the engineering health report.");
+    }
+  }
+
+  private async generateTraceabilityReport(logger: ConsoleLogger): Promise<void> {
+    if (!this.core) {
+      new Notice("Engineering core is not available.");
+      return;
+    }
+
+    try {
+      const services = new EngineeringServices(this.core.database);
+      const renderer = new TraceabilityRenderer();
+      const writer = new ObsidianReportWriter(this.app.vault);
+
+      const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
+
+      await command.execute();
+
+      new Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
+    } catch (error: unknown) {
+      logger.error("Failed to generate traceability report.", error);
+
+      new Notice("Failed to generate the traceability report.");
     }
   }
 
