@@ -8,6 +8,8 @@ export class TraceabilityRenderer {
       `Requirements: **${String(snapshot.requirementCount)}**`,
       `Traced requirements: **${String(snapshot.tracedRequirementCount)}**`,
       `Missing components: **${String(snapshot.missingComponentCount)}**`,
+      `Missing verifications: **${String(snapshot.missingVerificationCount)}**`,
+      `Missing verifications: **${String(snapshot.missingVerificationCount)}**`,
       "",
     ].join("\n");
   }

@@ -62,3 +62,18 @@ it("renders the missing component count", () => {
 
   expect(markdown).toContain("Missing components: **2**");
 });
+
+it("renders the missing verification count", () => {
+  const snapshot = {
+    requirementCount: 12,
+    tracedRequirementCount: 9,
+    missingComponentCount: 2,
+    missingVerificationCount: 1,
+  };
+
+  const renderer = new TraceabilityRenderer();
+
+  const markdown = renderer.render(snapshot);
+
+  expect(markdown).toContain("Missing verifications: **1**");
+});
