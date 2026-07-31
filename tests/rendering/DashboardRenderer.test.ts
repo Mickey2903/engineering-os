@@ -244,4 +244,68 @@ describe("DashboardRenderer", () => {
 
     expect(markdown).toContain("Orphan requirements: 3");
   });
+
+  it("renders the duplicate relationship count", () => {
+    const renderer = new DashboardRenderer();
+
+    const markdown = renderer.render(
+      {
+        requirementCount: 0,
+        componentCount: 0,
+        verificationCount: 0,
+        riskCount: 0,
+        adrCount: 0,
+        brokenLinks: 0,
+        orphanRequirements: 0,
+        duplicateRelationships: 2,
+      },
+      {
+        healthScore: 100,
+      },
+    );
+
+    expect(markdown).toContain("Duplicate relationships: 2");
+  });
+
+  it("renders the complete dashboard markdown", () => {
+    const renderer = new DashboardRenderer();
+
+    const markdown = renderer.render(
+      {
+        requirementCount: 15,
+        componentCount: 8,
+        verificationCount: 11,
+        riskCount: 4,
+        adrCount: 6,
+        brokenLinks: 2,
+        orphanRequirements: 3,
+        duplicateRelationships: 1,
+      },
+      {
+        healthScore: 87,
+      },
+    );
+
+    expect(markdown).toBe(
+      [
+        "# Engineering Dashboard",
+        "",
+        "Health score: 87",
+        "",
+        "## Engineering Overview",
+        "",
+        "Requirements: 15",
+        "Components: 8",
+        "Verifications: 11",
+        "Risks: 4",
+        "ADRs: 6",
+        "",
+        "## Health Details",
+        "",
+        "Broken links: 2",
+        "Orphan requirements: 3",
+        "Duplicate relationships: 1",
+      ].join("\n"),
+    );
+  });
 });
