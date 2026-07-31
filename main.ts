@@ -11,6 +11,10 @@ import { ConsoleLogger } from "./src/core/Logger";
 import { ObsidianReportWriter } from "./src/obsidian/ObsidianReportWriter";
 import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
 import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
+import { RequirementQualityRenderer } from "./src/rendering/RequirementQualityRenderer";
+import { VerificationCoverageRenderer } from "./src/rendering/VerificationCoverageRenderer";
+import { RequirementQualityService } from "./src/services/RequirementQualityService";
+import { VerificationCoverageService } from "./src/services/VerificationCoverageService";
 import { EngineeringServices } from "./src/services/EngineeringServices";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
@@ -101,8 +105,12 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
         new DashboardStatisticsService(),
         services.traceability,
         services.health,
+        new RequirementQualityService(database),
+        new VerificationCoverageService(database),
         new DashboardRenderer(),
         new TraceabilityRenderer(),
+        new RequirementQualityRenderer(),
+        new VerificationCoverageRenderer(),
       );
 
       const writer = new ObsidianReportWriter(this.app.vault);
