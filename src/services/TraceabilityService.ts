@@ -1,6 +1,7 @@
 import type { EngineeringDatabase } from "../database/EngineeringDatabase";
 import type { EngineeringEntity } from "../models/EngineeringEntity";
 import type { Relationship } from "../models/Relationship";
+import type { TraceabilitySnapshot } from "../models/TraceabilitySnapshot";
 import { GraphAlgorithms } from "./graph/GraphAlgorithms";
 import { RelationshipService } from "./RelationshipService";
 
@@ -54,6 +55,15 @@ export class TraceabilityService {
       .filter((relationship) => relationship.type === "link")
       .map((relationship) => relationship.targetId)
       .filter((targetId) => this.database.findById(targetId) === undefined);
+  }
+
+  public createSnapshot(): TraceabilitySnapshot {
+    return {
+      requirementCount: 0,
+      tracedRequirementCount: 0,
+      missingComponentCount: 0,
+      missingVerificationCount: 0,
+    };
   }
 
   public hasDirectLink(sourceId: string, targetId: string): boolean {

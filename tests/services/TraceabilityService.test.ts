@@ -100,3 +100,17 @@ it("returns an empty result when no path exists", () => {
 
   expect(service.findShortestPathEntities("REQ-001", "CMP-999")).toEqual([]);
 });
+
+describe("createSnapshot", () => {
+  it("creates an empty traceability snapshot", () => {
+    const database = new EngineeringDatabase();
+    const service = new TraceabilityService(database);
+
+    expect(service.createSnapshot()).toEqual({
+      requirementCount: 0,
+      tracedRequirementCount: 0,
+      missingComponentCount: 0,
+      missingVerificationCount: 0,
+    });
+  });
+});
