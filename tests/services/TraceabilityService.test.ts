@@ -128,3 +128,18 @@ describe("createSnapshot requirement count", () => {
     expect(service.createSnapshot().requirementCount).toBe(2);
   });
 });
+
+describe("createSnapshot traced requirements", () => {
+  it("counts traced requirements", () => {
+    const database = new EngineeringDatabase();
+
+    database.upsert(requirement("REQ-001", ["CMP-001"]));
+    database.upsert(component("CMP-001"));
+
+    database.upsert(requirement("REQ-002"));
+
+    const service = new TraceabilityService(database);
+
+    expect(service.createSnapshot().tracedRequirementCount).toBe(1);
+  });
+});

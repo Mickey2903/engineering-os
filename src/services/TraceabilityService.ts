@@ -60,7 +60,9 @@ export class TraceabilityService {
   public createSnapshot(): TraceabilitySnapshot {
     return {
       requirementCount: this.database.findByType("requirement").length,
-      tracedRequirementCount: 0,
+      tracedRequirementCount: this.database
+        .findByType("requirement")
+        .filter((requirement) => this.findReachableEntities(requirement.id).length > 0).length,
       missingComponentCount: 0,
       missingVerificationCount: 0,
     };
