@@ -46,4 +46,26 @@ describe("DashboardRenderer", () => {
 
     expect(markdown).toContain("87");
   });
+
+  it("renders the requirement count", () => {
+    const renderer = new DashboardRenderer();
+
+    const markdown = renderer.render(
+      {
+        requirementCount: 15,
+        componentCount: 0,
+        verificationCount: 0,
+        riskCount: 0,
+        adrCount: 0,
+        brokenLinks: 0,
+        orphanRequirements: 0,
+        duplicateRelationships: 0,
+      },
+      {
+        healthScore: 100,
+      },
+    );
+
+    expect(markdown).toContain("Requirements: 15");
+  });
 });

@@ -5,8 +5,12 @@ export class DashboardRenderer {
   public render(snapshot: DashboardSnapshot, statistics: DashboardStatistics): string {
     void snapshot;
 
-    return ["# Engineering Dashboard", "", "Health score: " + String(statistics.healthScore)].join(
-      "\n",
-    );
+    return [
+      "# Engineering Dashboard",
+      "",
+      "Health score: " + String(statistics.healthScore),
+      "",
+      "Requirements: " + String(snapshot.requirementCount),
+    ].join("\n");
   }
 }
