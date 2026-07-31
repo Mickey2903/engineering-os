@@ -39,7 +39,18 @@ export class EngineeringIntelligenceRenderer {
       }
     }
 
-    builder.blank();
+    if (report.insights.length > 0) {
+  builder.blank();
+  builder.section("Intelligence Findings");
+  builder.blank();
+
+  for (const insight of report.insights) {
+    builder.bullet(
+      `${insight.severity}: ${insight.title} - ${insight.description}`,
+    );
+  }
+}
+builder.blank();
 
     return builder.build();
   }

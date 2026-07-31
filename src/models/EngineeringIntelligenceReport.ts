@@ -1,3 +1,5 @@
+import type { EngineeringInsight } from "../intelligence/EngineeringInsight";
+
 export interface EngineeringImprovementArea {
   readonly category: string;
   readonly message: string;
@@ -6,9 +8,15 @@ export interface EngineeringImprovementArea {
 
 export interface EngineeringIntelligenceReport {
   readonly overallScore: number;
+
   readonly healthScore: number;
   readonly requirementQualityScore: number;
   readonly verificationCoverageScore: number;
   readonly traceabilityScore: number;
-  readonly improvementAreas: readonly EngineeringImprovementArea[];
+
+  readonly improvementAreas:
+    readonly EngineeringImprovementArea[];
+
+  readonly insights:
+    readonly EngineeringInsight[];
 }

@@ -8,6 +8,7 @@ import { VerificationCoverageService } from "../../src/services/VerificationCove
 import { TraceabilityService } from "../../src/services/TraceabilityService";
 import { EngineeringIntelligenceService } from "../../src/services/EngineeringIntelligenceService";
 
+import { EngineeringIntelligenceEngine } from "../../src/intelligence/EngineeringIntelligenceEngine";
 describe("EngineeringIntelligenceService", () => {
   it("returns zero scores for empty database", () => {
     const database = new EngineeringDatabase();
@@ -24,6 +25,8 @@ describe("EngineeringIntelligenceService", () => {
       new RequirementQualityService(database),
       new VerificationCoverageService(database),
       new TraceabilityService(database),
+      new EngineeringIntelligenceEngine([]),
+database,
     );
 
     const report = service.analyze();
@@ -63,6 +66,8 @@ describe("EngineeringIntelligenceService", () => {
       new RequirementQualityService(database),
       new VerificationCoverageService(database),
       new TraceabilityService(database),
+      new EngineeringIntelligenceEngine([]),
+database,
     );
 
     const report = service.analyze();
@@ -100,6 +105,8 @@ describe("EngineeringIntelligenceService", () => {
       new RequirementQualityService(database),
       new VerificationCoverageService(database),
       new TraceabilityService(database),
+      new EngineeringIntelligenceEngine([]),
+database,
     );
 
     const report = service.analyze();

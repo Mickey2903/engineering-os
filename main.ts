@@ -33,6 +33,16 @@ import { GenerateProjectDashboardsCommand } from "./src/commands/GenerateProject
 import { EngineeringProjectRepository } from "./src/repositories/EngineeringProjectRepository";
 import { EngineeringProjectDashboardService } from "./src/services/EngineeringProjectDashboardService";
 import { EngineeringProjectDashboardRenderer } from "./src/rendering/EngineeringProjectDashboardRenderer";
+import { EngineeringIntelligenceEngine } from "./src/intelligence/EngineeringIntelligenceEngine";
+import { RequirementQualityRule } from "./src/intelligence/rules/RequirementQualityRule";
+import { TraceabilityRule } from "./src/intelligence/rules/TraceabilityRule";
+import { VerificationCoverageRule } from "./src/intelligence/rules/VerificationCoverageRule";
+import { ComponentHealthRule } from "./src/intelligence/rules/ComponentHealthRule";
+import { RiskHealthRule } from "./src/intelligence/rules/RiskHealthRule";
+import { ArchitectureHealthRule } from "./src/intelligence/rules/ArchitectureHealthRule";
+import { InitializeEngineeringWorkspaceCommand } from "./src/commands/InitializeEngineeringWorkspaceCommand";
+import { TemplateDeploymentService } from "./src/services/TemplateDeploymentService";
+import { ObsidianTemplateRepository } from "./src/services/ObsidianTemplateRepository";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
   private core: EngineeringCore | undefined;
@@ -104,7 +114,13 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);
     });
-
+this.addCommand({
+  id: "initialize-engineering-workspace",
+  name: "Initialize engineering workspace",
+  callback: async () => {
+    await this.initializeEngineeringWorkspace();
+  },
+});
     logger.info("Plugin loaded.");
   }
 
@@ -128,10 +144,21 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
 	      getAdrs: () => database.findByType("adr"),
 	    }),
 	    new DashboardStatisticsService(),
-	    new RequirementQualityService(database),
-	    new VerificationCoverageService(database),
-	    services.traceability,
-	  );
+  new RequirementQualityService(database),
+  new VerificationCoverageService(database),
+  services.traceability,
+
+  new EngineeringIntelligenceEngine([
+    new RequirementQualityRule(),
+    new TraceabilityRule(),
+    new VerificationCoverageRule(),
+    new ComponentHealthRule(),
+     new RiskHealthRule(),
+     new ArchitectureHealthRule(),
+  ]),
+
+  database,
+);
 
       const reportService = new EngineeringReportService(
         new DashboardService({
@@ -155,9 +182,21 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
             getAdrs: () => database.findByType("adr"),
           }),
           new DashboardStatisticsService(),
-          new RequirementQualityService(database),
-          new VerificationCoverageService(database),
-          services.traceability,
+  new RequirementQualityService(database),
+  new VerificationCoverageService(database),
+  services.traceability,
+
+  new EngineeringIntelligenceEngine([
+    new RequirementQualityRule(),
+    new TraceabilityRule(),
+    new VerificationCoverageRule(),
+    new ComponentHealthRule(),
+     new RiskHealthRule(),
+     new ArchitectureHealthRule(),
+  ]),
+
+  database,
+
         ),
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
@@ -230,29 +269,104 @@ await command.execute();
     }
   }
 
-  private async generateTraceabilityReport(logger: ConsoleLogger): Promise<void> {
-    if (!this.core) {
-      new Notice("Engineering core is not available.");
-      return;
-    }
+private async initializeEngineeringWorkspace(): Promise<void> {
+  const templateDeployment =
+    new TemplateDeploymentService(
+      {
+        write: async (
+  path: string,
+  content: string,
+): Promise<void> => {
 
-    try {
-      const services = new EngineeringServices(this.core.database);
-      const renderer = new TraceabilityRenderer();
-      const writer = new ObsidianReportWriter(this.app.vault);
+  const parts =
+    path.split("/");
 
-      const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
+  const filename =
+    parts.pop();
 
-      await command.execute();
+  if (!filename) {
+    return;
+  }
 
-      new Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
-    } catch (error: unknown) {
-      logger.error("Failed to generate traceability report.", error);
+  let current = "";
 
-      new Notice("Failed to generate the traceability report.");
+  for (const part of parts) {
+    current =
+      current
+        ? `${current}/${part}`
+        : part;
+
+    const folder =
+      this.app.vault.getAbstractFileByPath(
+        current,
+      );
+
+    if (!folder) {
+      await this.app.vault.createFolder(
+        current,
+      );
     }
   }
-  private async generateProjectDashboards(
+
+  const existing =
+    this.app.vault.getAbstractFileByPath(
+      path,
+    );
+
+  if (existing) {
+    return;
+  }
+
+  await this.app.vault.create(
+    path,
+    content,
+  );
+},
+      },
+      new ObsidianTemplateRepository(
+  this.app.vault.adapter,
+  `${this.manifest.dir}/templates`,
+),
+    );
+
+
+  const command =
+    new InitializeEngineeringWorkspaceCommand(
+      {
+        createFolder: async (
+          path: string,
+        ): Promise<void> => {
+          const existing =
+            this.app.vault.getAbstractFileByPath(path);
+
+          if (!existing) {
+            await this.app.vault.createFolder(path);
+          }
+        },
+      },
+      templateDeployment,
+    );
+
+
+  try {
+    await command.execute();
+
+    new Notice(
+      "Engineering workspace initialized.",
+    );
+
+  } catch (error: unknown) {
+    new Notice(
+      "Failed to initialize engineering workspace.",
+    );
+
+    console.error(
+      "Initialize workspace failed:",
+      error,
+    );
+  }
+}
+private async generateProjectDashboards(
   logger: ConsoleLogger,
 ): Promise<void> {
 new Notice("Starting project dashboard generation");
@@ -314,7 +428,53 @@ if (!projects) {
   }
 }
 
-  public override onunload(): void {
+  private async generateTraceabilityReport(
+  logger: ConsoleLogger,
+): Promise<void> {
+  if (!this.core) {
+    new Notice("Engineering core is not available.");
+    return;
+  }
+
+  try {
+    const services =
+      new EngineeringServices(
+        this.core.database,
+      );
+
+    const renderer =
+      new TraceabilityRenderer();
+
+    const writer =
+      new ObsidianReportWriter(
+        this.app.vault,
+      );
+
+    const command =
+      new GenerateTraceabilityReportCommand(
+        services,
+        renderer,
+        writer,
+      );
+
+    await command.execute();
+
+    new Notice(
+      "Traceability report generated at Engineering/Reports/Traceability Report.md.",
+    );
+
+  } catch (error: unknown) {
+    logger.error(
+      "Failed to generate traceability report.",
+      error,
+    );
+
+    new Notice(
+      "Failed to generate the traceability report.",
+    );
+  }
+}
+public override onunload(): void {
     this.core?.shutdown();
     this.core = undefined;
   }

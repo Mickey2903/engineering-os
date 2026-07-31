@@ -11,6 +11,7 @@ describe("EngineeringIntelligenceReport", () => {
       verificationCoverageScore: 75,
       traceabilityScore: 95,
       improvementAreas: [],
+      insights: [],
     };
 
     expect(report.overallScore).toBe(85);

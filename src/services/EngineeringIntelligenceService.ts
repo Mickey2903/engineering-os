@@ -6,15 +6,20 @@ import type { VerificationCoverageService } from "./VerificationCoverageService"
 import type { TraceabilityService } from "./TraceabilityService";
 
 import type { EngineeringIntelligenceReport } from "../models/EngineeringIntelligenceReport";
+import type { EngineeringIntelligenceEngine } from "../intelligence/EngineeringIntelligenceEngine";
+import type { EngineeringInsight } from "../intelligence/EngineeringInsight";
+import type { EngineeringDatabaseReader } from "../database/EngineeringDatabaseReader";
 
 export class EngineeringIntelligenceService {
   public constructor(
-    private readonly dashboardService: DashboardService,
-    private readonly dashboardStatisticsService: DashboardStatisticsService,
-    private readonly requirementQualityService: RequirementQualityService,
-    private readonly verificationCoverageService: VerificationCoverageService,
-    private readonly traceabilityService: TraceabilityService,
-  ) {}
+  private readonly dashboardService: DashboardService,
+  private readonly dashboardStatisticsService: DashboardStatisticsService,
+  private readonly requirementQualityService: RequirementQualityService,
+  private readonly verificationCoverageService: VerificationCoverageService,
+  private readonly traceabilityService: TraceabilityService,
+  private readonly intelligenceEngine: EngineeringIntelligenceEngine,
+  private readonly database: EngineeringDatabaseReader,
+) {}
 
   public analyze(): EngineeringIntelligenceReport {
     const dashboardSnapshot = this.dashboardService.createSnapshot();
@@ -30,6 +35,11 @@ export class EngineeringIntelligenceService {
 
     const traceability =
       this.traceabilityService.createSnapshot();
+      
+      const insights =
+  this.intelligenceEngine.analyze(
+    this.database,
+  );
 
     const requirementQualityScore =
       requirementQuality.averageScore;
@@ -57,18 +67,21 @@ export class EngineeringIntelligenceService {
               4,
           );
     return {
-      overallScore,
-      healthScore,
-      requirementQualityScore,
-      verificationCoverageScore,
-      traceabilityScore,
-      improvementAreas: this.createImprovementAreas(
-        healthScore,
-        requirementQualityScore,
-        verificationCoverageScore,
-        traceabilityScore,
-      ),
-    };
+  overallScore,
+  healthScore,
+  requirementQualityScore,
+  verificationCoverageScore,
+  traceabilityScore,
+
+  improvementAreas: this.createImprovementAreas(
+    healthScore,
+    requirementQualityScore,
+    verificationCoverageScore,
+    traceabilityScore,
+  ),
+
+  insights,
+};
   }
 
   private createImprovementAreas(

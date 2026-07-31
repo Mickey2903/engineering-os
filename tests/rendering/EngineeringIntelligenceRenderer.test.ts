@@ -1,36 +1,80 @@
 import { describe, expect, it } from "vitest";
 
-import { EngineeringProjectDashboardRenderer } from "../../src/rendering/EngineeringProjectDashboardRenderer";
+import { EngineeringIntelligenceRenderer } from "../../src/rendering/EngineeringIntelligenceRenderer";
 
-describe("EngineeringProjectDashboardRenderer", () => {
-  it("renders a project dashboard markdown report", () => {
+
+describe("EngineeringIntelligenceRenderer", () => {
+  it("renders intelligence dashboard with insights", () => {
+
     const renderer =
-      new EngineeringProjectDashboardRenderer();
+      new EngineeringIntelligenceRenderer();
+
 
     const output =
       renderer.render({
-        projectId: "PLC-001",
-        projectName: "PLC Controller",
+        overallScore: 85,
 
-        requirementCount: 50,
-        componentCount: 20,
-        verificationCount: 40,
-        riskCount: 5,
-        adrCount: 10,
-
-        requirementQualityScore: 90,
+        healthScore: 90,
+        requirementQualityScore: 80,
         verificationCoverageScore: 85,
         traceabilityScore: 95,
-        healthScore: 92,
+
+        improvementAreas: [
+          {
+            category: "verification",
+            message: "Verification coverage needs improvement.",
+            severity: "medium",
+          },
+        ],
+
+        insights: [
+          {
+            id: "RISK-001-mitigation",
+            objectId: "RISK-001",
+            severity: "critical",
+            title: "High risk without mitigation",
+            description:
+              "Risk RISK-001 has no mitigation plan.",
+            recommendation:
+              "Create a mitigation plan.",
+          },
+        ],
       });
 
-    expect(output)
-      .toContain("# PLC Controller Dashboard");
 
     expect(output)
-      .toContain("Requirement Quality");
+      .toContain(
+        "# Engineering Intelligence Dashboard",
+      );
+
 
     expect(output)
-      .toContain("90%");
+      .toContain(
+        "Score: **85%**",
+      );
+
+
+    expect(output)
+      .toContain(
+        "Requirement Quality",
+      );
+
+
+    expect(output)
+      .toContain(
+        "Improvement Areas",
+      );
+
+
+    expect(output)
+      .toContain(
+        "Intelligence Findings",
+      );
+
+
+    expect(output)
+      .toContain(
+        "High risk without mitigation",
+      );
   });
 });

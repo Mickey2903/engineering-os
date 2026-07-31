@@ -925,6 +925,16 @@ var EngineeringIntelligenceRenderer = class {
         );
       }
     }
+    if (report.insights.length > 0) {
+      builder.blank();
+      builder.section("Intelligence Findings");
+      builder.blank();
+      for (const insight of report.insights) {
+        builder.bullet(
+          `${insight.severity}: ${insight.title} - ${insight.description}`
+        );
+      }
+    }
     builder.blank();
     return builder.build();
   }
@@ -1564,12 +1574,14 @@ var ObsidianMetricsStorage = class {
 
 // src/services/EngineeringIntelligenceService.ts
 var EngineeringIntelligenceService = class {
-  constructor(dashboardService, dashboardStatisticsService, requirementQualityService, verificationCoverageService, traceabilityService) {
+  constructor(dashboardService, dashboardStatisticsService, requirementQualityService, verificationCoverageService, traceabilityService, intelligenceEngine, database) {
     this.dashboardService = dashboardService;
     this.dashboardStatisticsService = dashboardStatisticsService;
     this.requirementQualityService = requirementQualityService;
     this.verificationCoverageService = verificationCoverageService;
     this.traceabilityService = traceabilityService;
+    this.intelligenceEngine = intelligenceEngine;
+    this.database = database;
   }
   analyze() {
     const dashboardSnapshot = this.dashboardService.createSnapshot();
@@ -1577,6 +1589,9 @@ var EngineeringIntelligenceService = class {
     const requirementQuality = this.requirementQualityService.analyze();
     const verificationCoverage = this.verificationCoverageService.analyze();
     const traceability = this.traceabilityService.createSnapshot();
+    const insights = this.intelligenceEngine.analyze(
+      this.database
+    );
     const requirementQualityScore = requirementQuality.averageScore;
     const verificationCoverageScore = verificationCoverage.coveragePercentage;
     const traceabilityScore = traceability.requirementCount === 0 ? 0 : Math.round(
@@ -1596,7 +1611,8 @@ var EngineeringIntelligenceService = class {
         requirementQualityScore,
         verificationCoverageScore,
         traceabilityScore
-      )
+      ),
+      insights
     };
   }
   createImprovementAreas(healthScore, requirementQualityScore, verificationCoverageScore, traceabilityScore) {
@@ -1906,6 +1922,343 @@ var EngineeringProjectDashboardRenderer = class {
   }
 };
 
+// src/intelligence/EngineeringIntelligenceEngine.ts
+var EngineeringIntelligenceEngine = class {
+  constructor(rules) {
+    this.rules = rules;
+  }
+  analyze(database) {
+    return this.rules.flatMap(
+      (rule) => rule.evaluate(database)
+    );
+  }
+};
+
+// src/intelligence/rules/RequirementQualityRule.ts
+var RequirementQualityRule = class {
+  id = "requirement-quality";
+  name = "Requirement quality analysis";
+  evaluate(database) {
+    const insights = [];
+    const requirements = database.findByType("requirement");
+    for (const requirement of requirements) {
+      if (!requirement.verificationMethod) {
+        insights.push({
+          id: `${requirement.id}-missing-verification`,
+          severity: "warning",
+          title: "Missing verification method",
+          description: `Requirement ${requirement.id} has no verification method.`,
+          objectId: requirement.id,
+          recommendation: "Add analysis, inspection, demonstration or test verification."
+        });
+      }
+      if (requirement.acceptanceCriteria.length === 0) {
+        insights.push({
+          id: `${requirement.id}-missing-criteria`,
+          severity: "warning",
+          title: "Missing acceptance criteria",
+          description: `Requirement ${requirement.id} has no acceptance criteria.`,
+          objectId: requirement.id,
+          recommendation: "Define measurable acceptance criteria."
+        });
+      }
+    }
+    return insights;
+  }
+};
+
+// src/intelligence/rules/TraceabilityRule.ts
+var TraceabilityRule = class {
+  id = "traceability";
+  name = "Requirement traceability analysis";
+  evaluate(database) {
+    const insights = [];
+    const requirements = database.findByType(
+      "requirement"
+    );
+    for (const requirement of requirements) {
+      if (requirement.links.length === 0) {
+        insights.push({
+          id: `${requirement.id}-missing-links`,
+          severity: "warning",
+          title: "Incomplete traceability",
+          description: `Requirement ${requirement.id} has no linked engineering objects.`,
+          objectId: requirement.id,
+          recommendation: "Link the requirement to components, verifications or other engineering objects."
+        });
+      }
+    }
+    return insights;
+  }
+};
+
+// src/intelligence/rules/VerificationCoverageRule.ts
+var VerificationCoverageRule = class {
+  id = "verification-coverage";
+  name = "Verification coverage analysis";
+  evaluate(database) {
+    const insights = [];
+    const requirements = database.findByType(
+      "requirement"
+    );
+    const verifications = database.findByType(
+      "verification"
+    );
+    const verifiedRequirementIds = new Set(
+      verifications.flatMap(
+        (verification) => verification.requirementIds
+      )
+    );
+    for (const requirement of requirements) {
+      if (!verifiedRequirementIds.has(
+        requirement.id
+      )) {
+        insights.push({
+          id: `${requirement.id}-missing-verification-coverage`,
+          severity: "warning",
+          title: "Missing verification coverage",
+          description: `Requirement ${requirement.id} has no verification activity.`,
+          objectId: requirement.id,
+          recommendation: "Create a verification linked to this requirement."
+        });
+      }
+    }
+    return insights;
+  }
+};
+
+// src/intelligence/rules/ComponentHealthRule.ts
+var ComponentHealthRule = class {
+  id = "component-health";
+  name = "Component health analysis";
+  evaluate(database) {
+    const insights = [];
+    const components = database.findByType(
+      "component"
+    );
+    for (const component of components) {
+      if (component.lifecycle === "unknown") {
+        insights.push({
+          id: `${component.id}-missing-lifecycle`,
+          severity: "warning",
+          title: "Missing component lifecycle",
+          description: `Component ${component.id} has no lifecycle information.`,
+          objectId: component.id,
+          recommendation: "Define the lifecycle state of the component."
+        });
+      }
+      if (component.lifecycle === "obsolete") {
+        insights.push({
+          id: `${component.id}-obsolete`,
+          severity: "critical",
+          title: "Obsolete component",
+          description: `Component ${component.id} is marked as obsolete.`,
+          objectId: component.id,
+          recommendation: "Review replacement or migration strategy."
+        });
+      }
+      if (component.links.length === 0) {
+        insights.push({
+          id: `${component.id}-no-links`,
+          severity: "info",
+          title: "Component has no relations",
+          description: `Component ${component.id} has no linked engineering objects.`,
+          objectId: component.id,
+          recommendation: "Link the component to requirements, interfaces or verification."
+        });
+      }
+    }
+    return insights;
+  }
+};
+
+// src/intelligence/rules/RiskHealthRule.ts
+var RiskHealthRule = class {
+  id = "risk-health";
+  name = "Risk health analysis";
+  evaluate(database) {
+    const insights = [];
+    const risks = database.findByType(
+      "risk"
+    );
+    for (const risk of risks) {
+      if (risk.level === "unknown") {
+        insights.push({
+          id: `${risk.id}-unknown-level`,
+          severity: "warning",
+          title: "Unknown risk level",
+          description: `Risk ${risk.id} has no defined risk level.`,
+          objectId: risk.id,
+          recommendation: "Define the risk classification."
+        });
+      }
+      if ((risk.level === "critical" || risk.level === "high") && !risk.mitigation) {
+        insights.push({
+          id: `${risk.id}-missing-mitigation`,
+          severity: "critical",
+          title: "High risk without mitigation",
+          description: `Risk ${risk.id} has a high impact level but no mitigation plan.`,
+          objectId: risk.id,
+          recommendation: "Create a mitigation plan for this risk."
+        });
+      }
+      if (risk.riskState === "open" && !risk.owner) {
+        insights.push({
+          id: `${risk.id}-missing-owner`,
+          severity: "warning",
+          title: "Open risk without owner",
+          description: `Risk ${risk.id} is open but has no assigned owner.`,
+          objectId: risk.id,
+          recommendation: "Assign an owner responsible for risk handling."
+        });
+      }
+    }
+    return insights;
+  }
+};
+
+// src/intelligence/rules/ArchitectureHealthRule.ts
+var ArchitectureHealthRule = class {
+  id = "architecture-health";
+  name = "Architecture health analysis";
+  evaluate(database) {
+    const insights = [];
+    const architectures = database.findByType(
+      "architecture"
+    );
+    const interfaces = database.findByType(
+      "interface"
+    );
+    const components = database.findByType(
+      "component"
+    );
+    for (const architecture of architectures) {
+      if (architecture.links.length === 0) {
+        insights.push({
+          id: `${architecture.id}-no-links`,
+          severity: "warning",
+          title: "Architecture has no relations",
+          description: `Architecture ${architecture.id} has no linked engineering objects.`,
+          objectId: architecture.id,
+          recommendation: "Link architecture elements to components or interfaces."
+        });
+      }
+    }
+    for (const item of interfaces) {
+      if (item.links.length === 0) {
+        insights.push({
+          id: `${item.id}-no-links`,
+          severity: "warning",
+          title: "Interface has no relations",
+          description: `Interface ${item.id} has no connected engineering objects.`,
+          objectId: item.id,
+          recommendation: "Connect the interface to related components."
+        });
+      }
+    }
+    for (const component of components) {
+      if (component.links.length === 0) {
+        insights.push({
+          id: `${component.id}-architecture-link`,
+          severity: "info",
+          title: "Component has no architecture relation",
+          description: `Component ${component.id} is not linked to architecture elements.`,
+          objectId: component.id,
+          recommendation: "Assign the component to an architecture structure."
+        });
+      }
+    }
+    return insights;
+  }
+};
+
+// src/commands/InitializeEngineeringWorkspaceCommand.ts
+var InitializeEngineeringWorkspaceCommand = class {
+  constructor(writer, templates) {
+    this.writer = writer;
+    this.templates = templates;
+  }
+  async execute() {
+    await this.templates.deploy();
+    const folders = [
+      "Engineering",
+      "Engineering/Projects",
+      "Engineering/Requirements",
+      "Engineering/Components",
+      "Engineering/Verification",
+      "Engineering/Risks",
+      "Engineering/Architecture",
+      "Engineering/Interfaces",
+      "Engineering/Reports"
+    ];
+    for (const folder of folders) {
+      await this.writer.createFolder(folder);
+    }
+  }
+};
+
+// src/services/TemplateDeploymentService.ts
+var TemplateDeploymentService = class {
+  constructor(writer, templates) {
+    this.writer = writer;
+    this.templates = templates;
+  }
+  async deploy() {
+    const templates = [
+      {
+        source: "Requirement.md",
+        target: "Engineering/Requirements/Requirement Template.md"
+      },
+      {
+        source: "Component.md",
+        target: "Engineering/Components/Component Template.md"
+      },
+      {
+        source: "Verification.md",
+        target: "Engineering/Verification/Verification Template.md"
+      },
+      {
+        source: "Risk.md",
+        target: "Engineering/Risks/Risk Template.md"
+      },
+      {
+        source: "Architecture.md",
+        target: "Engineering/Architecture/Architecture Template.md"
+      },
+      {
+        source: "Interface.md",
+        target: "Engineering/Interfaces/Interface Template.md"
+      },
+      {
+        source: "Project.md",
+        target: "Engineering/Projects/Project Template.md"
+      }
+    ];
+    for (const template of templates) {
+      const content = await this.templates.getTemplate(
+        template.source
+      );
+      await this.writer.write(
+        template.target,
+        content
+      );
+    }
+  }
+};
+
+// src/services/ObsidianTemplateRepository.ts
+var ObsidianTemplateRepository = class {
+  constructor(adapter, basePath) {
+    this.adapter = adapter;
+    this.basePath = basePath;
+  }
+  async getTemplate(name) {
+    return await this.adapter.read(
+      `${this.basePath}/${name}`
+    );
+  }
+};
+
 // main.ts
 var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
   core;
@@ -1966,6 +2319,13 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);
     });
+    this.addCommand({
+      id: "initialize-engineering-workspace",
+      name: "Initialize engineering workspace",
+      callback: async () => {
+        await this.initializeEngineeringWorkspace();
+      }
+    });
     logger.info("Plugin loaded.");
   }
   async generateEngineeringReports(logger) {
@@ -1987,7 +2347,16 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
         new DashboardStatisticsService(),
         new RequirementQualityService(database),
         new VerificationCoverageService(database),
-        services.traceability
+        services.traceability,
+        new EngineeringIntelligenceEngine([
+          new RequirementQualityRule(),
+          new TraceabilityRule(),
+          new VerificationCoverageRule(),
+          new ComponentHealthRule(),
+          new RiskHealthRule(),
+          new ArchitectureHealthRule()
+        ]),
+        database
       );
       const reportService = new EngineeringReportService(
         new DashboardService({
@@ -2013,7 +2382,16 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
           new DashboardStatisticsService(),
           new RequirementQualityService(database),
           new VerificationCoverageService(database),
-          services.traceability
+          services.traceability,
+          new EngineeringIntelligenceEngine([
+            new RequirementQualityRule(),
+            new TraceabilityRule(),
+            new VerificationCoverageRule(),
+            new ComponentHealthRule(),
+            new RiskHealthRule(),
+            new ArchitectureHealthRule()
+          ]),
+          database
         ),
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
@@ -2075,21 +2453,68 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
       new import_obsidian2.Notice("Failed to generate the engineering health report.");
     }
   }
-  async generateTraceabilityReport(logger) {
-    if (!this.core) {
-      new import_obsidian2.Notice("Engineering core is not available.");
-      return;
-    }
+  async initializeEngineeringWorkspace() {
+    const templateDeployment = new TemplateDeploymentService(
+      {
+        write: async (path, content) => {
+          const parts = path.split("/");
+          const filename = parts.pop();
+          if (!filename) {
+            return;
+          }
+          let current = "";
+          for (const part of parts) {
+            current = current ? `${current}/${part}` : part;
+            const folder = this.app.vault.getAbstractFileByPath(
+              current
+            );
+            if (!folder) {
+              await this.app.vault.createFolder(
+                current
+              );
+            }
+          }
+          const existing = this.app.vault.getAbstractFileByPath(
+            path
+          );
+          if (existing) {
+            return;
+          }
+          await this.app.vault.create(
+            path,
+            content
+          );
+        }
+      },
+      new ObsidianTemplateRepository(
+        this.app.vault.adapter,
+        `${this.manifest.dir}/templates`
+      )
+    );
+    const command = new InitializeEngineeringWorkspaceCommand(
+      {
+        createFolder: async (path) => {
+          const existing = this.app.vault.getAbstractFileByPath(path);
+          if (!existing) {
+            await this.app.vault.createFolder(path);
+          }
+        }
+      },
+      templateDeployment
+    );
     try {
-      const services = new EngineeringServices(this.core.database);
-      const renderer = new TraceabilityRenderer();
-      const writer = new ObsidianReportWriter(this.app.vault);
-      const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
       await command.execute();
-      new import_obsidian2.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
+      new import_obsidian2.Notice(
+        "Engineering workspace initialized."
+      );
     } catch (error) {
-      logger.error("Failed to generate traceability report.", error);
-      new import_obsidian2.Notice("Failed to generate the traceability report.");
+      new import_obsidian2.Notice(
+        "Failed to initialize engineering workspace."
+      );
+      console.error(
+        "Initialize workspace failed:",
+        error
+      );
     }
   }
   async generateProjectDashboards(logger) {
@@ -2132,6 +2557,38 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
       );
       new import_obsidian2.Notice(
         "Failed to generate project dashboards."
+      );
+    }
+  }
+  async generateTraceabilityReport(logger) {
+    if (!this.core) {
+      new import_obsidian2.Notice("Engineering core is not available.");
+      return;
+    }
+    try {
+      const services = new EngineeringServices(
+        this.core.database
+      );
+      const renderer = new TraceabilityRenderer();
+      const writer = new ObsidianReportWriter(
+        this.app.vault
+      );
+      const command = new GenerateTraceabilityReportCommand(
+        services,
+        renderer,
+        writer
+      );
+      await command.execute();
+      new import_obsidian2.Notice(
+        "Traceability report generated at Engineering/Reports/Traceability Report.md."
+      );
+    } catch (error) {
+      logger.error(
+        "Failed to generate traceability report.",
+        error
+      );
+      new import_obsidian2.Notice(
+        "Failed to generate the traceability report."
       );
     }
   }
