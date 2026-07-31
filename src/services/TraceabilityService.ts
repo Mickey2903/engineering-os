@@ -59,27 +59,43 @@ export class TraceabilityService {
 
   public createSnapshot(): TraceabilitySnapshot {
     return {
-      requirementCount: this.database.findByType("requirement").length,
+      requirementCount: this.countRequirements(),
       tracedRequirementCount: this.database
         .findByType("requirement")
         .filter((requirement) => this.findReachableEntities(requirement.id).length > 0).length,
-      missingComponentCount: this.database
-        .findByType("requirement")
-        .filter(
-          (requirement) =>
-            !this.findReachableEntities(requirement.id).some(
-              (entity) => entity.type === "component",
-            ),
-        ).length,
-      missingVerificationCount: this.database
-        .findByType("requirement")
-        .filter(
-          (requirement) =>
-            !this.findReachableEntities(requirement.id).some(
-              (entity) => entity.type === "verification",
-            ),
-        ).length,
+      missingComponentCount: this.countMissingComponents(),
+      missingVerificationCount: this.countMissingVerifications(),
     };
+  }
+
+  private requirements() {
+    return this.database.findByType("requirement");
+  }
+
+  private countRequirements(): number {
+    return this.requirements().length;
+  }
+
+  private countTracedRequirements(): number {
+    return this.requirements().filter(
+      (requirement) => this.findReachableEntities(requirement.id).length > 0,
+    ).length;
+  }
+
+  private countMissingComponents(): number {
+    return this.requirements().filter(
+      (requirement) =>
+        !this.findReachableEntities(requirement.id).some((entity) => entity.type === "component"),
+    ).length;
+  }
+
+  private countMissingVerifications(): number {
+    return this.requirements().filter(
+      (requirement) =>
+        !this.findReachableEntities(requirement.id).some(
+          (entity) => entity.type === "verification",
+        ),
+    ).length;
   }
 
   public hasDirectLink(sourceId: string, targetId: string): boolean {
