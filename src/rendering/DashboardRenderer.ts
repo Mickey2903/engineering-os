@@ -8,11 +8,14 @@ export class DashboardRenderer {
 
     builder.heading("Engineering Dashboard");
     builder.blank();
+
     builder.line(`Health score: ${String(statistics.healthScore)}`);
     builder.blank();
 
     this.renderEngineeringOverview(builder, snapshot);
+
     builder.blank();
+
     this.renderHealthDetails(builder, snapshot);
 
     return builder.build();
@@ -24,6 +27,7 @@ export class DashboardRenderer {
   ): void {
     builder.section("Engineering Overview");
     builder.blank();
+
     builder.line(`Requirements: ${String(snapshot.requirementCount)}`);
     builder.line(`Components: ${String(snapshot.componentCount)}`);
     builder.line(`Verifications: ${String(snapshot.verificationCount)}`);
@@ -34,6 +38,7 @@ export class DashboardRenderer {
   private renderHealthDetails(builder: MarkdownReportBuilder, snapshot: DashboardSnapshot): void {
     builder.section("Health Details");
     builder.blank();
+
     builder.line(`Broken links: ${String(snapshot.brokenLinks)}`);
     builder.line(`Orphan requirements: ${String(snapshot.orphanRequirements)}`);
     builder.line(`Duplicate relationships: ${String(snapshot.duplicateRelationships)}`);

@@ -1,5 +1,10 @@
 import { Notice, Plugin, TFile } from "obsidian";
 import { GenerateTraceabilityReportCommand } from "./src/commands/GenerateTraceabilityReportCommand";
+import { GenerateEngineeringReportsCommand } from "./src/commands/GenerateEngineeringReportsCommand";
+import { EngineeringReportService } from "./src/services/EngineeringReportService";
+import { DashboardService } from "./src/services/DashboardService";
+import { DashboardStatisticsService } from "./src/services/DashboardStatisticsService";
+import { DashboardRenderer } from "./src/rendering/DashboardRenderer";
 import { RunHealthCheckCommand } from "./src/commands/RunHealthCheckCommand";
 import { EngineeringCore } from "./src/core/EngineeringCore";
 import { ConsoleLogger } from "./src/core/Logger";
@@ -59,11 +64,58 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: "generate-engineering-reports",
+      name: "Generate engineering reports",
+      callback: async () => {
+        await this.generateEngineeringReports(logger);
+      },
+    });
+
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);
     });
 
     logger.info("Plugin loaded.");
+  }
+
+  private async generateEngineeringReports(logger: ConsoleLogger): Promise<void> {
+    if (!this.core) {
+      new Notice("Engineering core is not available.");
+      return;
+    }
+
+    try {
+      const database = this.core.database;
+
+      const services = new EngineeringServices(database);
+
+      const reportService = new EngineeringReportService(
+        new DashboardService({
+          getRequirements: () => database.findByType("requirement"),
+          getComponents: () => database.findByType("component"),
+          getVerifications: () => database.findByType("verification"),
+          getRisks: () => database.findByType("risk"),
+          getAdrs: () => database.findByType("adr"),
+        }),
+        new DashboardStatisticsService(),
+        services.traceability,
+        services.health,
+        new DashboardRenderer(),
+        new TraceabilityRenderer(),
+      );
+
+      const writer = new ObsidianReportWriter(this.app.vault);
+
+      const command = new GenerateEngineeringReportsCommand(reportService, writer);
+
+      await command.execute();
+
+      new Notice("Engineering reports generated.");
+    } catch (error: unknown) {
+      logger.error("Failed to generate engineering reports.", error);
+      new Notice("Failed to generate engineering reports.");
+    }
   }
 
   private async runHealthCheck(logger: ConsoleLogger): Promise<void> {

@@ -39,6 +39,202 @@ var GenerateTraceabilityReportCommand = class {
   }
 };
 
+// src/commands/GenerateEngineeringReportsCommand.ts
+var GenerateEngineeringReportsCommand = class {
+  constructor(reports, writer) {
+    this.reports = reports;
+    this.writer = writer;
+  }
+  async execute() {
+    const report = this.reports.generate();
+    await this.writer.write("Engineering/Reports/Dashboard.md", report.dashboard);
+    await this.writer.write("Engineering/Reports/Traceability Report.md", report.traceability);
+    await this.writer.write("Engineering/Reports/Health Report.md", report.health);
+  }
+};
+
+// src/rendering/HealthReportRenderer.ts
+function renderHealthReport(report) {
+  return [
+    "# Engineering Health Report",
+    "",
+    "## Summary",
+    "",
+    `- Broken links: ${String(report.brokenLinks.length)}`,
+    `- Orphan entities: ${String(report.orphanEntities.length)}`,
+    `- Entities without incoming links: ${String(report.entitiesWithoutIncomingLinks.length)}`,
+    `- Entities without outgoing links: ${String(report.entitiesWithoutOutgoingLinks.length)}`,
+    `- Duplicate relationships: ${String(report.duplicateRelationships.length)}`,
+    "",
+    "---",
+    "",
+    "## Broken links",
+    "",
+    renderBrokenLinks(report.brokenLinks),
+    "",
+    "## Orphan entities",
+    "",
+    renderEntities(report.orphanEntities, "No orphan entities found."),
+    "",
+    "## Entities without incoming links",
+    "",
+    renderEntities(
+      report.entitiesWithoutIncomingLinks,
+      "Every entity has at least one incoming link."
+    ),
+    "",
+    "## Entities without outgoing links",
+    "",
+    renderEntities(
+      report.entitiesWithoutOutgoingLinks,
+      "Every entity has at least one outgoing link."
+    ),
+    "",
+    "## Duplicate relationships",
+    "",
+    renderDuplicateRelationships(report.duplicateRelationships),
+    ""
+  ].join("\n");
+}
+function renderBrokenLinks(brokenLinks) {
+  if (brokenLinks.length === 0) {
+    return "No broken links found.";
+  }
+  return brokenLinks.map(
+    ({ entityId, brokenLinkId }) => `- \`${entityId}\` links to missing entity \`${brokenLinkId}\``
+  ).join("\n");
+}
+function renderEntities(entities, emptyMessage) {
+  if (entities.length === 0) {
+    return emptyMessage;
+  }
+  return entities.map((entity) => `- \`${entity.id}\` \u2014 ${entity.title}`).join("\n");
+}
+function renderDuplicateRelationships(relationships) {
+  if (relationships.length === 0) {
+    return "No duplicate relationships found.";
+  }
+  return relationships.map(({ sourceId, targetId }) => `- \`${sourceId}\` links multiple times to \`${targetId}\``).join("\n");
+}
+
+// src/services/EngineeringReportService.ts
+var EngineeringReportService = class {
+  constructor(dashboardService, dashboardStatisticsService, traceabilityService, healthService, dashboardRenderer, traceabilityRenderer) {
+    this.dashboardService = dashboardService;
+    this.dashboardStatisticsService = dashboardStatisticsService;
+    this.traceabilityService = traceabilityService;
+    this.healthService = healthService;
+    this.dashboardRenderer = dashboardRenderer;
+    this.traceabilityRenderer = traceabilityRenderer;
+  }
+  generate() {
+    const dashboardSnapshot = this.dashboardService.createSnapshot();
+    const dashboardStatistics = this.dashboardStatisticsService.calculate(dashboardSnapshot);
+    const traceabilitySnapshot = this.traceabilityService.createSnapshot();
+    const healthReport = this.healthService.healthReport();
+    return {
+      dashboard: this.dashboardRenderer.render(dashboardSnapshot, dashboardStatistics),
+      traceability: this.traceabilityRenderer.render(traceabilitySnapshot),
+      health: renderHealthReport(healthReport)
+    };
+  }
+};
+
+// src/services/DashboardService.ts
+var DashboardService = class {
+  constructor(dataSource, healthMetrics) {
+    this.dataSource = dataSource;
+    this.healthMetrics = healthMetrics;
+  }
+  createSnapshot() {
+    return {
+      requirementCount: this.dataSource.getRequirements().length,
+      componentCount: this.dataSource.getComponents().length,
+      verificationCount: this.dataSource.getVerifications().length,
+      riskCount: this.dataSource.getRisks().length,
+      adrCount: this.dataSource.getAdrs().length,
+      brokenLinks: this.healthMetrics?.getBrokenLinkCount() ?? 0,
+      orphanRequirements: this.healthMetrics?.getOrphanRequirementCount() ?? 0,
+      duplicateRelationships: this.healthMetrics?.getDuplicateRelationshipCount() ?? 0
+    };
+  }
+};
+
+// src/services/DashboardStatisticsService.ts
+var DEFAULT_WEIGHTS = {
+  brokenLinkPenalty: 5,
+  orphanRequirementPenalty: 3,
+  duplicateRelationshipPenalty: 2
+};
+var DashboardStatisticsService = class {
+  calculate(snapshot) {
+    const healthScore = Math.max(
+      0,
+      100 - snapshot.brokenLinks * DEFAULT_WEIGHTS.brokenLinkPenalty - snapshot.orphanRequirements * DEFAULT_WEIGHTS.orphanRequirementPenalty - snapshot.duplicateRelationships * DEFAULT_WEIGHTS.duplicateRelationshipPenalty
+    );
+    return {
+      healthScore
+    };
+  }
+};
+
+// src/rendering/MarkdownReportBuilder.ts
+var MarkdownReportBuilder = class {
+  lines = [];
+  heading(text2) {
+    this.lines.push(`# ${text2}`);
+  }
+  line(text2) {
+    this.lines.push(text2);
+  }
+  section(title) {
+    this.lines.push(`## ${title}`);
+  }
+  bullet(text2) {
+    this.lines.push(`- ${text2}`);
+  }
+  metric(label, value) {
+    this.lines.push(`${label}: **${String(value)}**`);
+  }
+  blank() {
+    this.lines.push("");
+  }
+  build() {
+    return this.lines.join("\n");
+  }
+};
+
+// src/rendering/DashboardRenderer.ts
+var DashboardRenderer = class {
+  render(snapshot, statistics) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Engineering Dashboard");
+    builder.blank();
+    builder.line(`Health score: ${String(statistics.healthScore)}`);
+    builder.blank();
+    this.renderEngineeringOverview(builder, snapshot);
+    builder.blank();
+    this.renderHealthDetails(builder, snapshot);
+    return builder.build();
+  }
+  renderEngineeringOverview(builder, snapshot) {
+    builder.section("Engineering Overview");
+    builder.blank();
+    builder.line(`Requirements: ${String(snapshot.requirementCount)}`);
+    builder.line(`Components: ${String(snapshot.componentCount)}`);
+    builder.line(`Verifications: ${String(snapshot.verificationCount)}`);
+    builder.line(`Risks: ${String(snapshot.riskCount)}`);
+    builder.line(`ADRs: ${String(snapshot.adrCount)}`);
+  }
+  renderHealthDetails(builder, snapshot) {
+    builder.section("Health Details");
+    builder.blank();
+    builder.line(`Broken links: ${String(snapshot.brokenLinks)}`);
+    builder.line(`Orphan requirements: ${String(snapshot.orphanRequirements)}`);
+    builder.line(`Duplicate relationships: ${String(snapshot.duplicateRelationships)}`);
+  }
+};
+
 // src/commands/RunHealthCheckCommand.ts
 var RunHealthCheckCommand = class {
   constructor(services, renderer, writer) {
@@ -403,70 +599,6 @@ var ObsidianReportWriter = class {
   }
 };
 
-// src/rendering/HealthReportRenderer.ts
-function renderHealthReport(report) {
-  return [
-    "# Engineering Health Report",
-    "",
-    "## Summary",
-    "",
-    `- Broken links: ${String(report.brokenLinks.length)}`,
-    `- Orphan entities: ${String(report.orphanEntities.length)}`,
-    `- Entities without incoming links: ${String(report.entitiesWithoutIncomingLinks.length)}`,
-    `- Entities without outgoing links: ${String(report.entitiesWithoutOutgoingLinks.length)}`,
-    `- Duplicate relationships: ${String(report.duplicateRelationships.length)}`,
-    "",
-    "---",
-    "",
-    "## Broken links",
-    "",
-    renderBrokenLinks(report.brokenLinks),
-    "",
-    "## Orphan entities",
-    "",
-    renderEntities(report.orphanEntities, "No orphan entities found."),
-    "",
-    "## Entities without incoming links",
-    "",
-    renderEntities(
-      report.entitiesWithoutIncomingLinks,
-      "Every entity has at least one incoming link."
-    ),
-    "",
-    "## Entities without outgoing links",
-    "",
-    renderEntities(
-      report.entitiesWithoutOutgoingLinks,
-      "Every entity has at least one outgoing link."
-    ),
-    "",
-    "## Duplicate relationships",
-    "",
-    renderDuplicateRelationships(report.duplicateRelationships),
-    ""
-  ].join("\n");
-}
-function renderBrokenLinks(brokenLinks) {
-  if (brokenLinks.length === 0) {
-    return "No broken links found.";
-  }
-  return brokenLinks.map(
-    ({ entityId, brokenLinkId }) => `- \`${entityId}\` links to missing entity \`${brokenLinkId}\``
-  ).join("\n");
-}
-function renderEntities(entities, emptyMessage) {
-  if (entities.length === 0) {
-    return emptyMessage;
-  }
-  return entities.map((entity) => `- \`${entity.id}\` \u2014 ${entity.title}`).join("\n");
-}
-function renderDuplicateRelationships(relationships) {
-  if (relationships.length === 0) {
-    return "No duplicate relationships found.";
-  }
-  return relationships.map(({ sourceId, targetId }) => `- \`${sourceId}\` links multiple times to \`${targetId}\``).join("\n");
-}
-
 // src/rendering/TraceabilityRenderer.ts
 var TraceabilityRenderer = class {
   renderHeading() {
@@ -476,17 +608,38 @@ var TraceabilityRenderer = class {
     const coverage = snapshot.requirementCount === 0 ? 0 : Math.round(snapshot.tracedRequirementCount / snapshot.requirementCount * 100);
     return `Coverage: **${String(coverage)}%**`;
   }
-  render(snapshot) {
+  renderMissingComponents(snapshot) {
+    if (snapshot.missingComponents.length === 0) {
+      return [];
+    }
     return [
-      this.renderHeading(),
       "",
-      `Requirements: **${String(snapshot.requirementCount)}**`,
-      `Traced requirements: **${String(snapshot.tracedRequirementCount)}**`,
-      `Missing components: **${String(snapshot.missingComponentCount)}**`,
-      `Missing verifications: **${String(snapshot.missingVerificationCount)}**`,
-      this.renderCoverage(snapshot),
-      ""
-    ].join("\n");
+      "## Requirements without components",
+      "",
+      ...snapshot.missingComponents.map(
+        (requirement) => `- ${requirement.id} \u2013 ${requirement.title}`
+      )
+    ];
+  }
+  render(snapshot) {
+    const builder = new MarkdownReportBuilder();
+    builder.heading("Traceability Report");
+    builder.blank();
+    builder.metric("Requirements", snapshot.requirementCount);
+    builder.metric("Traced requirements", snapshot.tracedRequirementCount);
+    builder.metric("Missing components", snapshot.missingComponentCount);
+    builder.metric("Missing verifications", snapshot.missingVerificationCount);
+    builder.line(this.renderCoverage(snapshot));
+    if (snapshot.missingComponents.length > 0) {
+      builder.blank();
+      builder.section("Requirements without components");
+      builder.blank();
+      for (const requirement of snapshot.missingComponents) {
+        builder.bullet(`${requirement.id} \u2013 ${requirement.title}`);
+      }
+    }
+    builder.blank();
+    return builder.build();
   }
 };
 
@@ -746,15 +899,17 @@ var TraceabilityService = class {
     return this.relationships.outgoing(entityId).filter((relationship) => relationship.type === "link").map((relationship) => relationship.targetId).filter((targetId) => this.database.findById(targetId) === void 0);
   }
   createSnapshot() {
+    const missingComponents = this.findRequirementsWithoutComponents();
     return {
       requirementCount: this.countRequirements(),
-      tracedRequirementCount: this.database.findByType("requirement").filter((requirement) => this.findReachableEntities(requirement.id).length > 0).length,
-      missingComponentCount: this.countMissingComponents(),
-      missingVerificationCount: this.countMissingVerifications()
+      tracedRequirementCount: this.countTracedRequirements(),
+      missingComponentCount: missingComponents.length,
+      missingVerificationCount: this.countMissingVerifications(),
+      missingComponents
     };
   }
   requirements() {
-    return this.database.findByType("requirement");
+    return this.database.findByType("requirement").filter((entity) => entity.type === "requirement");
   }
   countRequirements() {
     return this.requirements().length;
@@ -764,10 +919,10 @@ var TraceabilityService = class {
       (requirement) => this.findReachableEntities(requirement.id).length > 0
     ).length;
   }
-  countMissingComponents() {
+  findRequirementsWithoutComponents() {
     return this.requirements().filter(
       (requirement) => !this.findReachableEntities(requirement.id).some((entity) => entity.type === "component")
-    ).length;
+    );
   }
   countMissingVerifications() {
     return this.requirements().filter(
@@ -849,10 +1004,48 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
         await this.generateTraceabilityReport(logger);
       }
     });
+    this.addCommand({
+      id: "generate-engineering-reports",
+      name: "Generate engineering reports",
+      callback: async () => {
+        await this.generateEngineeringReports(logger);
+      }
+    });
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);
     });
     logger.info("Plugin loaded.");
+  }
+  async generateEngineeringReports(logger) {
+    if (!this.core) {
+      new import_obsidian.Notice("Engineering core is not available.");
+      return;
+    }
+    try {
+      const database = this.core.database;
+      const services = new EngineeringServices(database);
+      const reportService = new EngineeringReportService(
+        new DashboardService({
+          getRequirements: () => database.findByType("requirement"),
+          getComponents: () => database.findByType("component"),
+          getVerifications: () => database.findByType("verification"),
+          getRisks: () => database.findByType("risk"),
+          getAdrs: () => database.findByType("adr")
+        }),
+        new DashboardStatisticsService(),
+        services.traceability,
+        services.health,
+        new DashboardRenderer(),
+        new TraceabilityRenderer()
+      );
+      const writer = new ObsidianReportWriter(this.app.vault);
+      const command = new GenerateEngineeringReportsCommand(reportService, writer);
+      await command.execute();
+      new import_obsidian.Notice("Engineering reports generated.");
+    } catch (error) {
+      logger.error("Failed to generate engineering reports.", error);
+      new import_obsidian.Notice("Failed to generate engineering reports.");
+    }
   }
   async runHealthCheck(logger) {
     if (!this.core) {
