@@ -111,6 +111,7 @@ describe("createSnapshot", () => {
       tracedRequirementCount: 0,
       missingComponentCount: 0,
       missingVerificationCount: 0,
+      missingComponents: [],
     });
   });
 });
@@ -156,6 +157,20 @@ describe("createSnapshot missing components", () => {
     const service = new TraceabilityService(database);
 
     expect(service.createSnapshot().missingComponentCount).toBe(1);
+  });
+
+  it("includes requirements without components", () => {
+    const database = new EngineeringDatabase();
+
+    database.upsert(requirement("REQ-001", ["CMP-001"]));
+    database.upsert(component("CMP-001"));
+
+    const missingRequirement = requirement("REQ-002");
+    database.upsert(missingRequirement);
+
+    const service = new TraceabilityService(database);
+
+    expect(service.createSnapshot().missingComponents).toEqual([missingRequirement]);
   });
 });
 

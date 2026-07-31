@@ -9,6 +9,7 @@ describe("GenerateTraceabilityReportCommand", () => {
       tracedRequirementCount: 8,
       missingComponentCount: 2,
       missingVerificationCount: 3,
+      missingComponents: [],
     };
 
     const createSnapshot = vi.fn().mockReturnValue(snapshot);

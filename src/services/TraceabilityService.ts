@@ -1,6 +1,7 @@
 import type { EngineeringDatabase } from "../database/EngineeringDatabase";
 import type { EngineeringEntity } from "../models/EngineeringEntity";
 import type { Relationship } from "../models/Relationship";
+import type { Requirement } from "../models/Requirement";
 import type { TraceabilitySnapshot } from "../models/TraceabilitySnapshot";
 import { GraphAlgorithms } from "./graph/GraphAlgorithms";
 import { RelationshipService } from "./RelationshipService";
@@ -58,18 +59,21 @@ export class TraceabilityService {
   }
 
   public createSnapshot(): TraceabilitySnapshot {
+    const missingComponents = this.findRequirementsWithoutComponents();
+
     return {
       requirementCount: this.countRequirements(),
-      tracedRequirementCount: this.database
-        .findByType("requirement")
-        .filter((requirement) => this.findReachableEntities(requirement.id).length > 0).length,
-      missingComponentCount: this.countMissingComponents(),
+      tracedRequirementCount: this.countTracedRequirements(),
+      missingComponentCount: missingComponents.length,
       missingVerificationCount: this.countMissingVerifications(),
+      missingComponents,
     };
   }
 
-  private requirements() {
-    return this.database.findByType("requirement");
+  private requirements(): readonly Requirement[] {
+    return this.database
+      .findByType("requirement")
+      .filter((entity): entity is Requirement => entity.type === "requirement");
   }
 
   private countRequirements(): number {
@@ -82,11 +86,11 @@ export class TraceabilityService {
     ).length;
   }
 
-  private countMissingComponents(): number {
+  private findRequirementsWithoutComponents() {
     return this.requirements().filter(
       (requirement) =>
         !this.findReachableEntities(requirement.id).some((entity) => entity.type === "component"),
-    ).length;
+    );
   }
 
   private countMissingVerifications(): number {

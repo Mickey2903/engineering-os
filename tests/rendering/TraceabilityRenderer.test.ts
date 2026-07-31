@@ -10,6 +10,7 @@ describe("TraceabilityRenderer", () => {
       tracedRequirementCount: 0,
       missingComponentCount: 0,
       missingVerificationCount: 0,
+      missingComponents: [],
     };
 
     const renderer = new TraceabilityRenderer();
@@ -24,6 +25,7 @@ it("renders the requirement count", () => {
     tracedRequirementCount: 10,
     missingComponentCount: 1,
     missingVerificationCount: 1,
+    missingComponents: [],
   };
 
   const renderer = new TraceabilityRenderer();
@@ -39,6 +41,7 @@ it("renders the traced requirement count", () => {
     tracedRequirementCount: 9,
     missingComponentCount: 2,
     missingVerificationCount: 1,
+    missingComponents: [],
   };
 
   const renderer = new TraceabilityRenderer();
@@ -54,6 +57,7 @@ it("renders the missing component count", () => {
     tracedRequirementCount: 9,
     missingComponentCount: 2,
     missingVerificationCount: 1,
+    missingComponents: [],
   };
 
   const renderer = new TraceabilityRenderer();
@@ -69,6 +73,7 @@ it("renders the missing verification count", () => {
     tracedRequirementCount: 9,
     missingComponentCount: 2,
     missingVerificationCount: 1,
+    missingComponents: [],
   };
 
   const renderer = new TraceabilityRenderer();
@@ -84,6 +89,7 @@ it("renders the coverage percentage", () => {
     tracedRequirementCount: 6,
     missingComponentCount: 1,
     missingVerificationCount: 1,
+    missingComponents: [],
   };
 
   const renderer = new TraceabilityRenderer();
