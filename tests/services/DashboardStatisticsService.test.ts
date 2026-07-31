@@ -73,4 +73,22 @@ describe("DashboardStatisticsService", () => {
 
     expect(statistics.healthScore).toBe(94);
   });
+
+  it("never returns a negative health score", () => {
+    const service = new DashboardStatisticsService();
+
+    const statistics = service.calculate({
+      requirementCount: 0,
+      componentCount: 0,
+      verificationCount: 0,
+      riskCount: 0,
+      adrCount: 0,
+
+      brokenLinks: 100,
+      orphanRequirements: 100,
+      duplicateRelationships: 100,
+    });
+
+    expect(statistics.healthScore).toBe(0);
+  });
 });
