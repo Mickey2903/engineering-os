@@ -130,3 +130,47 @@ it("renders requirements without components", () => {
   expect(markdown).toContain("## Requirements without components");
   expect(markdown).toContain("- REQ-002 – Emergency stop");
 });
+
+it("renders the complete report", () => {
+  const snapshot: TraceabilitySnapshot = {
+    requirementCount: 2,
+    tracedRequirementCount: 1,
+    missingComponentCount: 1,
+    missingVerificationCount: 1,
+    missingComponents: [
+      {
+        id: "REQ-002",
+        type: "requirement",
+        title: "Emergency stop",
+        status: "approved",
+        tags: [],
+        sourcePath: "Requirements/REQ-002.md",
+        links: [],
+        modifiedTime: 1,
+        metadata: {},
+        domain: "safety",
+        priority: "critical",
+        acceptanceCriteria: [],
+      },
+    ],
+  };
+
+  const renderer = new TraceabilityRenderer();
+
+  expect(renderer.render(snapshot)).toBe(
+    [
+      "# Traceability Report",
+      "",
+      "Requirements: **2**",
+      "Traced requirements: **1**",
+      "Missing components: **1**",
+      "Missing verifications: **1**",
+      "Coverage: **50%**",
+      "",
+      "## Requirements without components",
+      "",
+      "- REQ-002 – Emergency stop",
+      "",
+    ].join("\n"),
+  );
+});

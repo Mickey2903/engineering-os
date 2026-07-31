@@ -1,4 +1,5 @@
 import type { TraceabilitySnapshot } from "../models/TraceabilitySnapshot";
+import { MarkdownReportBuilder } from "./MarkdownReportBuilder";
 
 export class TraceabilityRenderer {
   private renderHeading(): string {
@@ -30,16 +31,29 @@ export class TraceabilityRenderer {
   }
 
   public render(snapshot: TraceabilitySnapshot): string {
-    return [
-      this.renderHeading(),
-      "",
-      `Requirements: **${String(snapshot.requirementCount)}**`,
-      `Traced requirements: **${String(snapshot.tracedRequirementCount)}**`,
-      `Missing components: **${String(snapshot.missingComponentCount)}**`,
-      `Missing verifications: **${String(snapshot.missingVerificationCount)}**`,
-      this.renderCoverage(snapshot),
-      ...this.renderMissingComponents(snapshot),
-      "",
-    ].join("\n");
+    const builder = new MarkdownReportBuilder();
+
+    builder.heading("Traceability Report");
+    builder.blank();
+
+    builder.line(`Requirements: **${String(snapshot.requirementCount)}**`);
+    builder.line(`Traced requirements: **${String(snapshot.tracedRequirementCount)}**`);
+    builder.line(`Missing components: **${String(snapshot.missingComponentCount)}**`);
+    builder.line(`Missing verifications: **${String(snapshot.missingVerificationCount)}**`);
+    builder.line(this.renderCoverage(snapshot));
+
+    if (snapshot.missingComponents.length > 0) {
+      builder.blank();
+      builder.line("## Requirements without components");
+      builder.blank();
+
+      for (const requirement of snapshot.missingComponents) {
+        builder.line(`- ${requirement.id} – ${requirement.title}`);
+      }
+    }
+
+    builder.blank();
+
+    return builder.build();
   }
 }
