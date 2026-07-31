@@ -11,6 +11,7 @@ export class DashboardRenderer {
       "Health score: " + String(statistics.healthScore),
       "",
       "Requirements: " + String(snapshot.requirementCount),
+      "Components: " + String(snapshot.componentCount),
     ].join("\n");
   }
 }
