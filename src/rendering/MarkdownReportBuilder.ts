@@ -9,6 +9,10 @@ export class MarkdownReportBuilder {
     this.lines.push(text);
   }
 
+  public section(title: string): void {
+    this.lines.push(`## ${title}`);
+  }
+
   public blank(): void {
     this.lines.push("");
   }

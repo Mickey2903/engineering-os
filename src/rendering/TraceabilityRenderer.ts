@@ -44,7 +44,7 @@ export class TraceabilityRenderer {
 
     if (snapshot.missingComponents.length > 0) {
       builder.blank();
-      builder.line("## Requirements without components");
+      builder.section("Requirements without components");
       builder.blank();
 
       for (const requirement of snapshot.missingComponents) {

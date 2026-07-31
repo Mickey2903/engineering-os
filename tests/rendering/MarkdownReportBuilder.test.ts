@@ -11,4 +11,12 @@ describe("MarkdownReportBuilder", () => {
 
     expect(builder.build()).toBe(["# Example", "", "Hello"].join("\n"));
   });
+
+  it("renders a section heading", () => {
+    const builder = new MarkdownReportBuilder();
+
+    builder.section("Overview");
+
+    expect(builder.build()).toBe("## Overview");
+  });
 });
