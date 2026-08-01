@@ -51,6 +51,8 @@ import { Migration001InitialWorkspace } from "./src/migrations/Migration001Initi
 import { WorkspaceStatusService } from "./src/services/WorkspaceStatusService";
 import { WorkspaceStatusRenderer } from "./src/rendering/WorkspaceStatusRenderer";
 import { GenerateWorkspaceStatusReportCommand } from "./src/commands/GenerateWorkspaceStatusReportCommand";
+import { GenerateImpactAnalysisReportCommand } from "./src/commands/GenerateImpactAnalysisReportCommand";
+
 
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
@@ -194,6 +196,81 @@ this.addCommand({
     await this.initializeEngineeringWorkspace();
   },
 });
+
+this.addCommand({
+  id: "generate-impact-analysis-report",
+  name: "Generate Impact Analysis Report",
+
+  callback: async () => {
+
+    if (!this.core) {
+      return;
+    }
+
+
+    const file =
+      this.app.workspace.getActiveFile();
+
+
+    if (!file) {
+      new Notice(
+        "No active file selected.",
+      );
+
+      return;
+    }
+
+
+    const object =
+      this.core.database.findByPath(
+        file.path,
+      );
+
+
+    if (!object) {
+      new Notice(
+        "Active file is not an indexed engineering object.",
+      );
+
+      return;
+    }
+
+
+    const services =
+      new EngineeringServices(
+        this.core.database,
+      );
+
+
+    const renderer =
+      new ImpactAnalysisRenderer();
+
+
+    const writer =
+      new ObsidianReportWriter(
+        this.app.vault,
+      );
+
+
+    const command =
+      new GenerateImpactAnalysisReportCommand(
+        services.impactAnalysis,
+        renderer,
+        writer,
+      );
+
+
+    await command.execute(
+      object.id,
+    );
+
+
+    new Notice(
+      "Impact analysis report generated.",
+    );
+
+  },
+});
     logger.info("Plugin loaded.");
   }
 
@@ -274,8 +351,9 @@ this.addCommand({
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
 	new ImpactAnalysisService(
-	  services.relationships,
-	),
+  services.relationships,
+  this.core!.database,
+),
 	new VerificationTraceabilityService(
 	  services.relationships,
 	),

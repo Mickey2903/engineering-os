@@ -58,6 +58,22 @@ export class RelationshipGraph {
   public neighbors(id: string): readonly string[] {
     return this.outgoing(id).map((relationship) => relationship.targetId);
   }
+  public dependencies(id: string): readonly string[] {
+  return this.outgoing(id)
+    .map(
+      (relationship) =>
+        relationship.targetId,
+    );
+}
+
+
+public dependents(id: string): readonly string[] {
+  return this.incoming(id)
+    .map(
+      (relationship) =>
+        relationship.sourceId,
+    );
+}
 
   public hasRelationship(sourceId: string, targetId: string): boolean {
     return this.outgoing(sourceId).some((relationship) => relationship.targetId === targetId);

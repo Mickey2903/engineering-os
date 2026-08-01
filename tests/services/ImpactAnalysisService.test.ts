@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { ImpactAnalysisService } from "../../src/services/ImpactAnalysisService";
+import { EngineeringDatabase } from "../../src/database/EngineeringDatabase";
 import { EngineeringRelationshipService } from "../../src/services/EngineeringRelationshipService";
 
 describe("ImpactAnalysisService", () => {
   it("creates impact report from relationships", () => {
     const relationships =
       new EngineeringRelationshipService();
+      const database =
+  new EngineeringDatabase();
 
     relationships.addLink({
       id: "L1",
@@ -25,9 +28,10 @@ describe("ImpactAnalysisService", () => {
     });
 
     const service =
-      new ImpactAnalysisService(
-        relationships,
-      );
+  new ImpactAnalysisService(
+    relationships,
+    database,
+  );
 
     const report =
       service.analyze("REQ-001");

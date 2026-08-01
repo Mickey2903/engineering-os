@@ -1,36 +1,56 @@
 import type { ImpactAnalysisReport } from "../models/ImpactAnalysisReport";
 import type { EngineeringRelationshipService } from "./EngineeringRelationshipService";
+import type { EngineeringDatabase } from "../database/EngineeringDatabase";
+
 
 export class ImpactAnalysisService {
+
   public constructor(
     private readonly relationships: EngineeringRelationshipService,
+    private readonly database: EngineeringDatabase,
   ) {}
+
 
   public analyze(
     objectId: string,
   ): ImpactAnalysisReport {
+
     const affected =
-      this.relationships.findImpact(objectId);
+      this.relationships.findImpact(
+        objectId,
+      );
+
 
     return {
+
       rootObjectId: objectId,
 
-      affectedObjects: affected,
+      affectedObjects:
+        affected,
+
 
       affectedComponents:
-        affected.filter((id) =>
-          id.includes("COMP"),
+        affected.filter(
+          (id) =>
+            this.database.findById(id)?.type === "component",
         ),
+
 
       affectedRequirements:
-        affected.filter((id) =>
-          id.includes("REQ"),
+        affected.filter(
+          (id) =>
+            this.database.findById(id)?.type === "requirement",
         ),
 
+
       affectedTests:
-        affected.filter((id) =>
-          id.includes("TEST"),
+        affected.filter(
+          (id) =>
+            this.database.findById(id)?.type === "test-case",
         ),
+
     };
+
   }
+
 }

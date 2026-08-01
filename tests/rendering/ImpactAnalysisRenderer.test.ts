@@ -2,37 +2,67 @@ import { describe, expect, it } from "vitest";
 
 import { ImpactAnalysisRenderer } from "../../src/rendering/ImpactAnalysisRenderer";
 
+
 describe("ImpactAnalysisRenderer", () => {
-  it("renders impact analysis report", () => {
+
+  it("renders an impact analysis report", () => {
+
     const renderer =
       new ImpactAnalysisRenderer();
 
+
     const markdown =
       renderer.render({
-        rootObjectId: "REQ-001",
+        rootObjectId: "CMP-001",
+
         affectedObjects: [
-          "CPU-001",
+          "REQ-001",
           "TEST-001",
         ],
+
         affectedComponents: [
-          "CPU-001",
+          "CMP-002",
         ],
-        affectedRequirements: [],
+
+        affectedRequirements: [
+          "REQ-001",
+        ],
+
         affectedTests: [
           "TEST-001",
         ],
       });
 
-    expect(markdown)
-      .toContain("# Impact Analysis Report");
 
     expect(markdown)
-      .toContain("REQ-001");
+      .toContain(
+        "Impact Analysis Report",
+      );
+
 
     expect(markdown)
-      .toContain("CPU-001");
+      .toContain(
+        "CMP-001",
+      );
+
 
     expect(markdown)
-      .toContain("TEST-001");
+      .toContain(
+        "REQ-001",
+      );
+
+
+    expect(markdown)
+      .toContain(
+        "CMP-002",
+      );
+
+
+    expect(markdown)
+      .toContain(
+        "TEST-001",
+      );
+
   });
+
 });

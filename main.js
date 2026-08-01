@@ -974,24 +974,41 @@ var EngineeringTrendRenderer = class {
 var ImpactAnalysisRenderer = class {
   render(report) {
     const builder = new MarkdownReportBuilder();
-    builder.heading("Impact Analysis Report");
+    builder.heading(
+      "Impact Analysis Report"
+    );
     builder.blank();
-    builder.section("Changed Object");
+    builder.section(
+      "Changed Object"
+    );
     builder.line(
       report.rootObjectId
     );
     builder.blank();
-    builder.section("Affected Objects");
+    builder.section(
+      "Affected Objects"
+    );
     for (const object of report.affectedObjects) {
       builder.bullet(object);
     }
     builder.blank();
-    builder.section("Affected Components");
+    builder.section(
+      "Affected Requirements"
+    );
+    for (const requirement of report.affectedRequirements) {
+      builder.bullet(requirement);
+    }
+    builder.blank();
+    builder.section(
+      "Affected Components"
+    );
     for (const component of report.affectedComponents) {
       builder.bullet(component);
     }
     builder.blank();
-    builder.section("Affected Tests");
+    builder.section(
+      "Affected Tests"
+    );
     for (const test of report.affectedTests) {
       builder.bullet(test);
     }
@@ -1249,22 +1266,25 @@ var HealthService = class {
 
 // src/services/ImpactAnalysisService.ts
 var ImpactAnalysisService = class {
-  constructor(relationships) {
+  constructor(relationships, database) {
     this.relationships = relationships;
+    this.database = database;
   }
   analyze(objectId) {
-    const affected = this.relationships.findImpact(objectId);
+    const affected = this.relationships.findImpact(
+      objectId
+    );
     return {
       rootObjectId: objectId,
       affectedObjects: affected,
       affectedComponents: affected.filter(
-        (id) => id.includes("COMP")
+        (id) => this.database.findById(id)?.type === "component"
       ),
       affectedRequirements: affected.filter(
-        (id) => id.includes("REQ")
+        (id) => this.database.findById(id)?.type === "requirement"
       ),
       affectedTests: affected.filter(
-        (id) => id.includes("TEST")
+        (id) => this.database.findById(id)?.type === "test-case"
       )
     };
   }
@@ -1392,6 +1412,16 @@ var RelationshipGraph = class {
   neighbors(id) {
     return this.outgoing(id).map((relationship) => relationship.targetId);
   }
+  dependencies(id) {
+    return this.outgoing(id).map(
+      (relationship) => relationship.targetId
+    );
+  }
+  dependents(id) {
+    return this.incoming(id).map(
+      (relationship) => relationship.sourceId
+    );
+  }
   hasRelationship(sourceId, targetId) {
     return this.outgoing(sourceId).some((relationship) => relationship.targetId === targetId);
   }
@@ -1509,18 +1539,24 @@ var TraceabilityService = class {
 
 // src/services/EngineeringServices.ts
 var EngineeringServices = class {
+  constructor(database) {
+    this.database = database;
+    this.traceability = new TraceabilityService(
+      database
+    );
+    this.health = new HealthService(
+      database
+    );
+    this.relationships = new EngineeringRelationshipService();
+    this.impactAnalysis = new ImpactAnalysisService(
+      this.relationships,
+      this.database
+    );
+  }
   traceability;
   health;
   impactAnalysis;
   relationships;
-  constructor(database) {
-    this.traceability = new TraceabilityService(database);
-    this.health = new HealthService(database);
-    this.relationships = new EngineeringRelationshipService();
-    this.impactAnalysis = new ImpactAnalysisService(
-      this.relationships
-    );
-  }
 };
 
 // src/services/VerificationTraceabilityService.ts
@@ -2476,6 +2512,27 @@ var GenerateWorkspaceStatusReportCommand = class {
   }
 };
 
+// src/commands/GenerateImpactAnalysisReportCommand.ts
+var GenerateImpactAnalysisReportCommand = class {
+  constructor(analysis, renderer, writer) {
+    this.analysis = analysis;
+    this.renderer = renderer;
+    this.writer = writer;
+  }
+  async execute(objectId) {
+    const report = this.analysis.analyze(
+      objectId
+    );
+    const markdown = this.renderer.render(
+      report
+    );
+    await this.writer.write(
+      "Engineering/Reports/Impact Analysis.md",
+      markdown
+    );
+  }
+};
+
 // main.ts
 var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
   core;
@@ -2577,6 +2634,49 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
         await this.initializeEngineeringWorkspace();
       }
     });
+    this.addCommand({
+      id: "generate-impact-analysis-report",
+      name: "Generate Impact Analysis Report",
+      callback: async () => {
+        if (!this.core) {
+          return;
+        }
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+          new import_obsidian2.Notice(
+            "No active file selected."
+          );
+          return;
+        }
+        const object = this.core.database.findByPath(
+          file.path
+        );
+        if (!object) {
+          new import_obsidian2.Notice(
+            "Active file is not an indexed engineering object."
+          );
+          return;
+        }
+        const services = new EngineeringServices(
+          this.core.database
+        );
+        const renderer = new ImpactAnalysisRenderer();
+        const writer = new ObsidianReportWriter(
+          this.app.vault
+        );
+        const command = new GenerateImpactAnalysisReportCommand(
+          services.impactAnalysis,
+          renderer,
+          writer
+        );
+        await command.execute(
+          object.id
+        );
+        new import_obsidian2.Notice(
+          "Impact analysis report generated."
+        );
+      }
+    });
     logger.info("Plugin loaded.");
   }
   async generateEngineeringReports(logger) {
@@ -2647,7 +2747,8 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
         new ImpactAnalysisService(
-          services.relationships
+          services.relationships,
+          this.core.database
         ),
         new VerificationTraceabilityService(
           services.relationships
