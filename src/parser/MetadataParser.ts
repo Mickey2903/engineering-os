@@ -92,6 +92,19 @@ const adrStatuses = values<AdrStatus>(
 );
 const riskLevels = values<RiskLevel>("critical", "high", "medium", "low", "unknown");
 const riskStates = values<RiskState>("open", "mitigating", "accepted", "closed", "unknown");
+const projectStatuses = values<
+  "concept"
+  | "development"
+  | "testing"
+  | "production"
+  | "archived"
+>(
+  "concept",
+  "development",
+  "testing",
+  "production",
+  "archived",
+);
 
 const text = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -144,19 +157,25 @@ export class MetadataParser {
     };
 
     switch (base.type) {
-      case "requirement":
-        return this.requirement(base, fm);
-      case "component":
-        return this.component(base, fm);
-      case "verification":
-        return this.verification(base, fm);
-      case "adr":
-        return this.adr(base, fm);
-      case "risk":
-        return this.risk(base, fm);
-      default:
-        return base;
-    }
+
+  case "requirement":
+    return this.requirement(base, fm);
+
+  case "component":
+    return this.component(base, fm);
+
+  case "verification":
+    return this.verification(base, fm);
+
+  case "adr":
+    return this.adr(base, fm);
+
+  case "risk":
+    return this.risk(base, fm);
+
+  default:
+    return base;
+}
   }
 
   private requirement(base: EngineeringObject, fm: Record<string, unknown>): Requirement {
@@ -234,4 +253,5 @@ export class MetadataParser {
       ...(owner ? { owner } : {}),
     };
   }
+  
 }

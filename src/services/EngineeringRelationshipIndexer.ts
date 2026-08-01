@@ -8,8 +8,18 @@ export class EngineeringRelationshipIndexer {
   ) {}
 
   public indexObject(
-    object: EngineeringEntity,
-  ): void {
+  object: EngineeringEntity,
+): void {
+
+  console.log(
+    "[Relationship index]",
+    object.id,
+    object.metadata,
+  );
+
+  this.relationshipService.removeLinksForObject(
+    object.id,
+  );
     this.relationshipService.removeLinksForObject(
       object.id,
     );
@@ -36,26 +46,40 @@ export class EngineeringRelationshipIndexer {
   }
 
   private indexRelation(
-    object: EngineeringEntity,
-    targets: unknown,
-    type: EngineeringLink["type"],
-  ): void {
-    if (!Array.isArray(targets)) {
-      return;
-    }
+  object: EngineeringEntity,
+  targets: unknown,
+  type: EngineeringLink["type"],
+): void {
+  console.log(
+    "[Index relation]",
+    object.id,
+    type,
+    targets,
+  );
 
-    for (const target of targets) {
-      if (typeof target !== "string") {
-        continue;
-      }
-
-      this.relationshipService.addLink({
-        id: `${object.id}-${type}-${target}`,
-        sourceId: object.id,
-        targetId: target,
-        type,
-        createdAt: new Date().toISOString(),
-      });
-    }
+  if (!Array.isArray(targets)) {
+    return;
   }
+
+  for (const target of targets) {
+    if (typeof target !== "string") {
+      continue;
+    }
+
+    console.log(
+      "[Adding relation]",
+      object.id,
+      type,
+      target,
+    );
+
+    this.relationshipService.addLink({
+      id: `${object.id}-${type}-${target}`,
+      sourceId: object.id,
+      targetId: target,
+      type,
+      createdAt: new Date().toISOString(),
+    });
+  }
+}
 }

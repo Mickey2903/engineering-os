@@ -4,7 +4,7 @@ set -euo pipefail
 
 echo
 echo "========================================"
-echo " PLC Engineering Tools Verification"
+echo "Engineering OS Verification"
 echo "========================================"
 
 echo

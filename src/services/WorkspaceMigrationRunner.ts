@@ -18,7 +18,7 @@ export class WorkspaceMigrationRunner {
 
 
     console.log(
-      "[PLC Migration] Current version:",
+      "[Engineering  Migration] Current version:",
       current,
     );
 
@@ -26,7 +26,7 @@ export class WorkspaceMigrationRunner {
     if (current >= this.targetVersion) {
 
       console.log(
-        "[PLC Migration] Workspace already up to date",
+        "[Engineering  Migration] Workspace already up to date",
       );
 
       return;
@@ -34,7 +34,7 @@ export class WorkspaceMigrationRunner {
 
 
     console.log(
-      "[PLC Migration] Starting migration",
+      "[Engineering  Migration] Starting migration",
     );
 
 
@@ -46,7 +46,7 @@ export class WorkspaceMigrationRunner {
 
 
     console.log(
-      "[PLC Migration] Migration result:",
+      "[Engineering  Migration] Migration result:",
       version,
     );
 
@@ -57,7 +57,7 @@ export class WorkspaceMigrationRunner {
 
 
     console.log(
-      "[PLC Migration] Version saved",
+      "[Engineering  Migration] Version saved",
     );
 
   }

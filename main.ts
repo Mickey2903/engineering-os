@@ -55,11 +55,11 @@ import { GenerateImpactAnalysisReportCommand } from "./src/commands/GenerateImpa
 
 
 
-export default class PlcEngineeringToolsPlugin extends Plugin {
+export default class EngineeringOSPlugin extends Plugin {
   private core: EngineeringCore | undefined;
 
   public override onload(): void {
-    const logger = new ConsoleLogger("PLC Engineering Tools");
+    const logger = new ConsoleLogger("Engineering OS");
     this.core = new EngineeringCore(this.app, logger);
 
     this.app.workspace.onLayoutReady(async () => {
@@ -236,28 +236,22 @@ this.addCommand({
     }
 
 
-    const services =
-      new EngineeringServices(
-        this.core.database,
-      );
-
-
     const renderer =
-      new ImpactAnalysisRenderer();
+  new ImpactAnalysisRenderer();
 
 
-    const writer =
-      new ObsidianReportWriter(
-        this.app.vault,
-      );
+const writer =
+  new ObsidianReportWriter(
+    this.app.vault,
+  );
 
 
-    const command =
-      new GenerateImpactAnalysisReportCommand(
-        services.impactAnalysis,
-        renderer,
-        writer,
-      );
+const command =
+  new GenerateImpactAnalysisReportCommand(
+    this.core.impactAnalysis,
+    renderer,
+    writer,
+  );
 
 
     await command.execute(
@@ -350,10 +344,7 @@ this.addCommand({
         ),
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
-	new ImpactAnalysisService(
-  services.relationships,
-  this.core!.database,
-),
+	this.core!.impactAnalysis,
 	new VerificationTraceabilityService(
 	  services.relationships,
 	),
@@ -561,7 +552,7 @@ if (!projects) {
   }
 }
 
-  private async generateTraceabilityReport(
+private async generateTraceabilityReport(
   logger: ConsoleLogger,
 ): Promise<void> {
   if (!this.core) {
@@ -584,11 +575,11 @@ if (!projects) {
       );
 
     const command =
-      new GenerateTraceabilityReportCommand(
-        services,
-        renderer,
-        writer,
-      );
+  new GenerateTraceabilityReportCommand(
+    services,
+    renderer,
+    writer,
+  );
 
     await command.execute();
 
@@ -606,7 +597,7 @@ if (!projects) {
       "Failed to generate the traceability report.",
     );
   }
-} 
+}
 private async runWorkspaceMigrations(): Promise<void> {
 
   const versionService =

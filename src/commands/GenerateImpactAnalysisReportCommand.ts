@@ -41,12 +41,15 @@ export class GenerateImpactAnalysisReportCommand {
         objectId,
       );
 
+    console.log(
+      "[Impact Report Command]",
+      report,
+    );
 
     const markdown =
       this.renderer.render(
         report,
       );
-
 
     await this.writer.write(
       "Engineering/Reports/Impact Analysis.md",

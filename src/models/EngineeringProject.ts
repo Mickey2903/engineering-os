@@ -5,7 +5,9 @@ export type EngineeringProjectStatus =
   | "production"
   | "archived";
 
+
 export interface EngineeringProject {
+
   readonly id: string;
 
   readonly name: string;
@@ -19,4 +21,5 @@ export interface EngineeringProject {
   readonly createdAt: string;
 
   readonly updatedAt: string;
+
 }

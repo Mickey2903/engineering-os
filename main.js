@@ -20,7 +20,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => PlcEngineeringToolsPlugin
+  default: () => EngineeringOSPlugin
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian2 = require("obsidian");
@@ -448,6 +448,13 @@ var adrStatuses = values(
 );
 var riskLevels = values("critical", "high", "medium", "low", "unknown");
 var riskStates = values("open", "mitigating", "accepted", "closed", "unknown");
+var projectStatuses = values(
+  "concept",
+  "development",
+  "testing",
+  "production",
+  "archived"
+);
 var text = (value) => typeof value === "string" && value.trim() ? value.trim() : void 0;
 var numberValue = (value) => typeof value === "number" && Number.isFinite(value) ? value : void 0;
 var list = (value) => {
@@ -594,12 +601,13 @@ var ProjectMetadataParser = class {
 
 // src/scanner/VaultScanner.ts
 var VaultScanner = class {
-  constructor(vault, metadataCache, parser, database, projects, logger) {
+  constructor(vault, metadataCache, parser, database, projects, relationshipIndexer, logger) {
     this.vault = vault;
     this.metadataCache = metadataCache;
     this.parser = parser;
     this.database = database;
     this.projects = projects;
+    this.relationshipIndexer = relationshipIndexer;
     this.logger = logger;
   }
   projectParser = new ProjectMetadataParser();
@@ -608,6 +616,7 @@ var VaultScanner = class {
     const metadata = this.metadataCache.getFileCache(file);
     const document = this.parser.parse(file, metadata);
     this.database.upsert(document);
+    this.relationshipIndexer.indexObject(document);
     const frontmatter = metadata?.frontmatter ?? {};
     const project = this.projectParser.parse(frontmatter);
     if (project) {
@@ -650,6 +659,14 @@ var EngineeringRelationshipIndexer = class {
     this.relationshipService = relationshipService;
   }
   indexObject(object) {
+    console.log(
+      "[Relationship index]",
+      object.id,
+      object.metadata
+    );
+    this.relationshipService.removeLinksForObject(
+      object.id
+    );
     this.relationshipService.removeLinksForObject(
       object.id
     );
@@ -671,6 +688,12 @@ var EngineeringRelationshipIndexer = class {
     );
   }
   indexRelation(object, targets, type) {
+    console.log(
+      "[Index relation]",
+      object.id,
+      type,
+      targets
+    );
     if (!Array.isArray(targets)) {
       return;
     }
@@ -678,6 +701,12 @@ var EngineeringRelationshipIndexer = class {
       if (typeof target !== "string") {
         continue;
       }
+      console.log(
+        "[Adding relation]",
+        object.id,
+        type,
+        target
+      );
       this.relationshipService.addLink({
         id: `${object.id}-${type}-${target}`,
         sourceId: object.id,
@@ -693,14 +722,22 @@ var EngineeringRelationshipIndexer = class {
 var EngineeringRelationshipService = class {
   links = [];
   addLink(link) {
-    this.links.push(link);
+    const exists = this.links.some(
+      (existing) => existing.id === link.id
+    );
+    if (!exists) {
+      this.links.push(link);
+    }
   }
   getLinks() {
     return this.links;
   }
+  clear() {
+    this.links.length = 0;
+  }
   removeLinksForObject(id) {
     const remaining = this.links.filter(
-      (link) => link.sourceId !== id && link.targetId !== id
+      (link) => link.sourceId !== id
     );
     this.links.length = 0;
     this.links.push(...remaining);
@@ -726,6 +763,9 @@ var EngineeringRelationshipService = class {
       visited.add(current);
       for (const link of this.getOutgoingLinks(current)) {
         queue.push(link.targetId);
+      }
+      for (const link of this.getIncomingLinks(current)) {
+        queue.push(link.sourceId);
       }
     }
     visited.delete(id);
@@ -761,32 +801,91 @@ var EngineeringProjectRepository = class {
   }
 };
 
+// src/services/ImpactAnalysisService.ts
+var ImpactAnalysisService = class {
+  constructor(relationships, database) {
+    this.relationships = relationships;
+    this.database = database;
+  }
+  analyze(objectId) {
+    const affectedIds = this.relationships.findImpact(objectId);
+    const affectedObjects = affectedIds.map((id) => this.database.findById(id)).filter(
+      (object) => object !== void 0
+    );
+    return {
+      rootObjectId: objectId,
+      affectedObjects: affectedIds,
+      affectedComponents: affectedObjects.filter(
+        (object) => object.type === "component"
+      ).map(
+        (object) => object.id
+      ),
+      affectedRequirements: affectedObjects.filter(
+        (object) => object.type === "requirement"
+      ).map(
+        (object) => object.id
+      ),
+      affectedTests: affectedObjects.filter(
+        (object) => object.type === "verification"
+      ).map(
+        (object) => object.id
+      )
+    };
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger) {
     this.app = app;
     this.logger = logger;
     this.relationships = new EngineeringRelationshipService();
+    this.impactAnalysis = new ImpactAnalysisService(
+      this.relationships,
+      this.database
+    );
     this.relationshipIndexer = new EngineeringRelationshipIndexer(
       this.relationships
     );
+    this.parser = new MetadataParser();
     this.scanner = new VaultScanner(
-      app.vault,
-      app.metadataCache,
-      new MetadataParser(),
+      this.app.vault,
+      this.app.metadataCache,
+      this.parser,
       this.database,
       this.projects,
-      logger
+      this.relationshipIndexer,
+      this.logger
     );
   }
+  impactAnalysis;
   database = new EngineeringDatabase();
   projects = new EngineeringProjectRepository();
   scanner;
   relationships;
   relationshipIndexer;
+  parser;
   initialize() {
     const result = this.scanner.scanAll();
-    this.logger.info("Initial Vault scan complete.", result);
+    this.rebuildRelationships();
+    this.logger.info(
+      "Initial Vault scan complete.",
+      result
+    );
+  }
+  rebuildRelationships() {
+    this.relationships.clear();
+    console.log(
+      "[Relationship rebuild] objects:",
+      this.database.all().map((o) => o.id)
+    );
+    for (const object of this.database.all()) {
+      this.relationshipIndexer.indexObject(object);
+    }
+    console.log(
+      "[Relationship rebuild] links:",
+      this.relationships.getLinks()
+    );
   }
   updateFile(file) {
     this.scanner.scanFile(file);
@@ -1261,32 +1360,6 @@ var HealthService = class {
         brokenLinkId
       }))
     );
-  }
-};
-
-// src/services/ImpactAnalysisService.ts
-var ImpactAnalysisService = class {
-  constructor(relationships, database) {
-    this.relationships = relationships;
-    this.database = database;
-  }
-  analyze(objectId) {
-    const affected = this.relationships.findImpact(
-      objectId
-    );
-    return {
-      rootObjectId: objectId,
-      affectedObjects: affected,
-      affectedComponents: affected.filter(
-        (id) => this.database.findById(id)?.type === "component"
-      ),
-      affectedRequirements: affected.filter(
-        (id) => this.database.findById(id)?.type === "requirement"
-      ),
-      affectedTests: affected.filter(
-        (id) => this.database.findById(id)?.type === "test-case"
-      )
-    };
   }
 };
 
@@ -2334,31 +2407,31 @@ var WorkspaceMigrationRunner = class {
   async run() {
     const current = await this.versions.getVersion();
     console.log(
-      "[PLC Migration] Current version:",
+      "[Engineering  Migration] Current version:",
       current
     );
     if (current >= this.targetVersion) {
       console.log(
-        "[PLC Migration] Workspace already up to date"
+        "[Engineering  Migration] Workspace already up to date"
       );
       return;
     }
     console.log(
-      "[PLC Migration] Starting migration"
+      "[Engineering  Migration] Starting migration"
     );
     const version = await this.migrations.migrate(
       current,
       this.targetVersion
     );
     console.log(
-      "[PLC Migration] Migration result:",
+      "[Engineering  Migration] Migration result:",
       version
     );
     await this.versions.setVersion(
       version
     );
     console.log(
-      "[PLC Migration] Version saved"
+      "[Engineering  Migration] Version saved"
     );
   }
 };
@@ -2523,6 +2596,10 @@ var GenerateImpactAnalysisReportCommand = class {
     const report = this.analysis.analyze(
       objectId
     );
+    console.log(
+      "[Impact Report Command]",
+      report
+    );
     const markdown = this.renderer.render(
       report
     );
@@ -2534,10 +2611,10 @@ var GenerateImpactAnalysisReportCommand = class {
 };
 
 // main.ts
-var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
+var EngineeringOSPlugin = class extends import_obsidian2.Plugin {
   core;
   onload() {
-    const logger = new ConsoleLogger("PLC Engineering Tools");
+    const logger = new ConsoleLogger("Engineering OS");
     this.core = new EngineeringCore(this.app, logger);
     this.app.workspace.onLayoutReady(async () => {
       await this.runWorkspaceMigrations();
@@ -2657,15 +2734,12 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
           );
           return;
         }
-        const services = new EngineeringServices(
-          this.core.database
-        );
         const renderer = new ImpactAnalysisRenderer();
         const writer = new ObsidianReportWriter(
           this.app.vault
         );
         const command = new GenerateImpactAnalysisReportCommand(
-          services.impactAnalysis,
+          this.core.impactAnalysis,
           renderer,
           writer
         );
@@ -2746,10 +2820,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
         ),
         new EngineeringMetricsHistoryService(),
         new EngineeringTrendService(),
-        new ImpactAnalysisService(
-          services.relationships,
-          this.core.database
-        ),
+        this.core.impactAnalysis,
         new VerificationTraceabilityService(
           services.relationships
         ),

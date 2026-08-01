@@ -1,4 +1,5 @@
 export type EngineeringObjectType =
+  | "project"
   | "requirement"
   | "component"
   | "verification"

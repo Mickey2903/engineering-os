@@ -4,6 +4,7 @@ import type { EngineeringDatabase } from "../database/EngineeringDatabase";
 import type { MetadataParser } from "../parser/MetadataParser";
 import type { EngineeringProjectRepository } from "../repositories/EngineeringProjectRepository";
 import { ProjectMetadataParser } from "../parser/ProjectMetadataParser";
+import type { EngineeringRelationshipIndexer } from "../services/EngineeringRelationshipIndexer";
 
 export interface ScanResult {
   readonly scanned: number;
@@ -20,6 +21,7 @@ public constructor(
   private readonly parser: MetadataParser,
   private readonly database: EngineeringDatabase,
   private readonly projects: EngineeringProjectRepository,
+  private readonly relationshipIndexer: EngineeringRelationshipIndexer,
   private readonly logger: Logger,
 ) {}
 
@@ -33,6 +35,7 @@ public constructor(
     this.parser.parse(file, metadata);
 
   this.database.upsert(document);
+  this.relationshipIndexer.indexObject(document);
 
   const frontmatter =
     (metadata?.frontmatter ?? {}) as Record<string, unknown>;
