@@ -9,7 +9,11 @@ export type EngineeringObjectType =
   | "test-case"
   | "manufacturing-item"
   | "document"
-  | "unknown";
+  | "unknown"
+  | "document"
+| "cad"
+| "software"
+| "file";
 
 export type EngineeringStatus =
   | "draft"

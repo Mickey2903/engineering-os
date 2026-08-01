@@ -27,7 +27,12 @@ const types = values<EngineeringObjectType>(
   "interface",
   "test-case",
   "manufacturing-item",
+
+  // Workspace objects
   "document",
+  "cad",
+  "software",
+  "file",
 );
 const statuses = values<EngineeringStatus>(
   "draft",

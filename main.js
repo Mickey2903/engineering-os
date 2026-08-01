@@ -300,7 +300,11 @@ var types = values(
   "interface",
   "test-case",
   "manufacturing-item",
-  "document"
+  // Workspace objects
+  "document",
+  "cad",
+  "software",
+  "file"
 );
 var statuses = values(
   "draft",
