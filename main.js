@@ -2356,16 +2356,26 @@ var WorkspaceVersionService = class {
     this.readFile = readFile;
     this.writeFile = writeFile;
   }
+  versionPath = "Engineering/.workspace-version.md";
   async getVersion() {
-    return 0;
+    try {
+      const content = await this.readFile(
+        this.versionPath
+      );
+      const match = content.match(
+        /version:\s*(\d+)/
+      );
+      if (!match) {
+        return 0;
+      }
+      return Number(match[1]);
+    } catch {
+      return 0;
+    }
   }
   async setVersion(version) {
-    console.log(
-      "[PLC Version] Writing version:",
-      version
-    );
     await this.writeFile(
-      "Engineering/.workspace-version.md",
+      this.versionPath,
       `---
 version: ${String(version)}
 ---
@@ -2387,6 +2397,81 @@ var Migration001InitialWorkspace = class {
     );
     await this.createFolder(
       "Engineering/Interfaces"
+    );
+  }
+};
+
+// src/services/WorkspaceStatusService.ts
+var WorkspaceStatusService = class {
+  constructor(versions, database) {
+    this.versions = versions;
+    this.database = database;
+  }
+  async generate() {
+    const workspaceVersion = await this.versions.getVersion();
+    const entities = this.database.all();
+    return {
+      workspaceVersion,
+      indexedObjects: entities.length,
+      requirements: entities.filter(
+        (entity) => entity.type === "requirement"
+      ).length,
+      components: entities.filter(
+        (entity) => entity.type === "component"
+      ).length,
+      risks: entities.filter(
+        (entity) => entity.type === "risk"
+      ).length,
+      verificationCoverage: 0
+    };
+  }
+};
+
+// src/rendering/WorkspaceStatusRenderer.ts
+var WorkspaceStatusRenderer = class {
+  render(report) {
+    return [
+      "# Workspace Status",
+      "",
+      "## Workspace",
+      "",
+      `Version: ${String(report.workspaceVersion)}`,
+      "",
+      "## Engineering Objects",
+      "",
+      "| Type | Count |",
+      "| --- | ---: |",
+      `| Requirements | ${String(report.requirements)} |`,
+      `| Components | ${String(report.components)} |`,
+      `| Risks | ${String(report.risks)} |`,
+      "",
+      "## Index",
+      "",
+      `Indexed objects: ${String(report.indexedObjects)}`,
+      "",
+      "## Verification",
+      "",
+      `Coverage: ${String(report.verificationCoverage)}%`,
+      ""
+    ].join("\n");
+  }
+};
+
+// src/commands/GenerateWorkspaceStatusReportCommand.ts
+var GenerateWorkspaceStatusReportCommand = class {
+  constructor(service, renderer, writer) {
+    this.service = service;
+    this.renderer = renderer;
+    this.writer = writer;
+  }
+  async execute() {
+    const report = await this.service.generate();
+    const markdown = this.renderer.render(
+      report
+    );
+    await this.writer.write(
+      "Engineering/Reports/Workspace Status.md",
+      markdown
     );
   }
 };
@@ -2447,6 +2532,39 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
       name: "Generate engineering reports",
       callback: async () => {
         await this.generateEngineeringReports(logger);
+      }
+    });
+    this.addCommand({
+      id: "generate-workspace-status-report",
+      name: "Generate Workspace Status Report",
+      callback: async () => {
+        const versionService = new WorkspaceVersionService(
+          async (path) => {
+            return await this.app.vault.adapter.read(
+              path
+            );
+          },
+          async (path, content) => {
+            await this.app.vault.adapter.write(
+              path,
+              content
+            );
+          }
+        );
+        const service = new WorkspaceStatusService(
+          versionService,
+          this.core.database
+        );
+        const renderer = new WorkspaceStatusRenderer();
+        const writer = new ObsidianReportWriter(
+          this.app.vault
+        );
+        const command = new GenerateWorkspaceStatusReportCommand(
+          service,
+          renderer,
+          writer
+        );
+        await command.execute();
       }
     });
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {

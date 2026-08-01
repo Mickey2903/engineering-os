@@ -48,6 +48,10 @@ import { WorkspaceMigrationService } from "./src/services/WorkspaceMigrationServ
 import { WorkspaceVersionService } from "./src/services/WorkspaceVersionService";
 
 import { Migration001InitialWorkspace } from "./src/migrations/Migration001InitialWorkspace";
+import { WorkspaceStatusService } from "./src/services/WorkspaceStatusService";
+import { WorkspaceStatusRenderer } from "./src/rendering/WorkspaceStatusRenderer";
+import { GenerateWorkspaceStatusReportCommand } from "./src/commands/GenerateWorkspaceStatusReportCommand";
+
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
   private core: EngineeringCore | undefined;
@@ -119,6 +123,66 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
         await this.generateEngineeringReports(logger);
       },
     });
+    
+    this.addCommand({
+  id: "generate-workspace-status-report",
+  name: "Generate Workspace Status Report",
+  callback: async () => {
+
+    const versionService =
+  new WorkspaceVersionService(
+
+    async (
+      path: string,
+    ): Promise<string> => {
+
+      return await this.app.vault.adapter.read(
+        path,
+      );
+
+    },
+
+    async (
+      path: string,
+      content: string,
+    ): Promise<void> => {
+
+      await this.app.vault.adapter.write(
+        path,
+        content,
+      );
+
+    },
+
+  );
+
+    const service =
+  new WorkspaceStatusService(
+    versionService,
+    this.core!.database,
+  );
+const renderer =
+      new WorkspaceStatusRenderer();
+
+
+    const writer =
+  new ObsidianReportWriter(
+    this.app.vault,
+  );
+
+
+    const command =
+      new GenerateWorkspaceStatusReportCommand(
+        service,
+        renderer,
+        writer,
+      );
+
+
+    await command.execute();
+
+  },
+});
 
     this.addRibbonIcon("activity", "Engineering Health Check", async () => {
       await this.runHealthCheck(logger);

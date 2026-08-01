@@ -1,5 +1,9 @@
 export class WorkspaceVersionService {
 
+  private readonly versionPath =
+    "Engineering/.workspace-version.md";
+
+
   public constructor(
     private readonly readFile: (
       path: string,
@@ -13,27 +17,50 @@ export class WorkspaceVersionService {
 
 
   public async getVersion(): Promise<number> {
-    return 0;
+
+    try {
+
+      const content =
+        await this.readFile(
+          this.versionPath,
+        );
+
+
+      const match =
+        content.match(
+          /version:\s*(\d+)/,
+        );
+
+
+      if (!match) {
+        return 0;
+      }
+
+
+      return Number(match[1]);
+
+    } catch {
+
+      return 0;
+
+    }
+
   }
 
 
-public async setVersion(
-  version: number,
-): Promise<void> {
+  public async setVersion(
+    version: number,
+  ): Promise<void> {
 
-  console.log(
-    "[PLC Version] Writing version:",
-    version,
-  );
+    await this.writeFile(
+      this.versionPath,
 
-  await this.writeFile(
-    "Engineering/.workspace-version.md",
-    `---
+      `---
 version: ${String(version)}
 ---
 `,
-  );
+    );
 
-}
+  }
 
 }
