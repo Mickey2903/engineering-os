@@ -2179,7 +2179,7 @@ var InitializeEngineeringWorkspaceCommand = class {
     this.templates = templates;
   }
   async execute() {
-    await this.templates.deploy();
+    const createdFolders = [];
     const folders = [
       "Engineering",
       "Engineering/Projects",
@@ -2192,8 +2192,19 @@ var InitializeEngineeringWorkspaceCommand = class {
       "Engineering/Reports"
     ];
     for (const folder of folders) {
-      await this.writer.createFolder(folder);
+      await this.writer.createFolder(
+        folder
+      );
+      createdFolders.push(
+        folder
+      );
     }
+    const templateResult = await this.templates.deploy();
+    return {
+      createdFolders,
+      createdTemplates: templateResult.createdTemplates,
+      skippedTemplates: templateResult.skippedTemplates
+    };
   }
 };
 
@@ -2204,6 +2215,8 @@ var TemplateDeploymentService = class {
     this.templates = templates;
   }
   async deploy() {
+    const createdTemplates = [];
+    const skippedTemplates = [];
     const templates = [
       {
         source: "Requirement.md",
@@ -2238,11 +2251,27 @@ var TemplateDeploymentService = class {
       const content = await this.templates.getTemplate(
         template.source
       );
-      await this.writer.write(
-        template.target,
-        content
+      const exists = await this.writer.exists(
+        template.target
       );
+      if (exists) {
+        skippedTemplates.push(
+          template.target
+        );
+      } else {
+        await this.writer.write(
+          template.target,
+          content
+        );
+        createdTemplates.push(
+          template.target
+        );
+      }
     }
+    return {
+      createdTemplates,
+      skippedTemplates
+    };
   }
 };
 
@@ -2456,27 +2485,11 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
   async initializeEngineeringWorkspace() {
     const templateDeployment = new TemplateDeploymentService(
       {
+        exists: async (path) => {
+          return this.app.vault.getAbstractFileByPath(path) !== null;
+        },
         write: async (path, content) => {
-          const parts = path.split("/");
-          const filename = parts.pop();
-          if (!filename) {
-            return;
-          }
-          let current = "";
-          for (const part of parts) {
-            current = current ? `${current}/${part}` : part;
-            const folder = this.app.vault.getAbstractFileByPath(
-              current
-            );
-            if (!folder) {
-              await this.app.vault.createFolder(
-                current
-              );
-            }
-          }
-          const existing = this.app.vault.getAbstractFileByPath(
-            path
-          );
+          const existing = this.app.vault.getAbstractFileByPath(path);
           if (existing) {
             return;
           }
@@ -2503,9 +2516,14 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
       templateDeployment
     );
     try {
-      await command.execute();
+      const result = await command.execute();
       new import_obsidian2.Notice(
-        "Engineering workspace initialized."
+        [
+          "Engineering workspace initialized.",
+          `Folders created: ${String(result.createdFolders.length)}`,
+          `Templates created: ${String(result.createdTemplates.length)}`,
+          `Templates skipped: ${String(result.skippedTemplates.length)}`
+        ].join("\n")
       );
     } catch (error) {
       new import_obsidian2.Notice(

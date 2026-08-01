@@ -1,18 +1,34 @@
 import type { TemplateRepository } from "./TemplateRepository";
 
 export interface TemplateWriter {
+
+  exists(
+    path: string,
+  ): Promise<boolean>;
+
+
   write(
     path: string,
     content: string,
   ): Promise<void>;
 }
+
 export class TemplateDeploymentService {
+
   public constructor(
     private readonly writer: TemplateWriter,
     private readonly templates: TemplateRepository,
   ) {}
 
-  public async deploy(): Promise<void> {
+
+  public async deploy(): Promise<{
+    createdTemplates: readonly string[];
+    skippedTemplates: readonly string[];
+  }> {
+
+    const createdTemplates: string[] = [];
+    const skippedTemplates: string[] = [];
+
 
     const templates = [
       {
@@ -54,15 +70,42 @@ export class TemplateDeploymentService {
 
 
     for (const template of templates) {
+
       const content =
         await this.templates.getTemplate(
           template.source,
         );
 
-      await this.writer.write(
-        template.target,
-        content,
-      );
+
+      const exists =
+  await this.writer.exists(
+    template.target,
+  );
+
+
+if (exists) {
+
+  skippedTemplates.push(
+    template.target,
+  );
+
+} else {
+
+  await this.writer.write(
+    template.target,
+    content,
+  );
+
+  createdTemplates.push(
+    template.target,
+  );
+}
     }
+
+
+    return {
+      createdTemplates,
+      skippedTemplates,
+    };
   }
 }

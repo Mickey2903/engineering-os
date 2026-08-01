@@ -22,9 +22,12 @@ describe("InitializeEngineeringWorkspaceCommand", () => {
     const command =
       new InitializeEngineeringWorkspaceCommand(
   writer,
-  {
-    deploy: async (): Promise<void> => {},
-  } as TemplateDeploymentService,
+ {
+  deploy: async () => ({
+    createdTemplates: [],
+    skippedTemplates: [],
+  }),
+} as unknown as TemplateDeploymentService
 );
 
 
@@ -96,12 +99,21 @@ describe("InitializeEngineeringWorkspaceCommand", () => {
       new InitializeEngineeringWorkspaceCommand(
   writer,
   {
-    deploy: async (): Promise<void> => {},
-  } as TemplateDeploymentService,
+  deploy: async () => ({
+    createdTemplates: [],
+    skippedTemplates: [],
+  }),
+} as unknown as TemplateDeploymentService
 );
 
 
-    await command.execute();
+    const result =
+  await command.execute();
+  expect(
+  result.createdTemplates,
+)
+.toEqual([]);
+  
 
 
     expect(new Set(folders).size)

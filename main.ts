@@ -273,56 +273,32 @@ private async initializeEngineeringWorkspace(): Promise<void> {
   const templateDeployment =
     new TemplateDeploymentService(
       {
-        write: async (
-  path: string,
-  content: string,
-): Promise<void> => {
-
-  const parts =
-    path.split("/");
-
-  const filename =
-    parts.pop();
-
-  if (!filename) {
-    return;
-  }
-
-  let current = "";
-
-  for (const part of parts) {
-    current =
-      current
-        ? `${current}/${part}`
-        : part;
-
-    const folder =
-      this.app.vault.getAbstractFileByPath(
-        current,
-      );
-
-    if (!folder) {
-      await this.app.vault.createFolder(
-        current,
-      );
-    }
-  }
-
-  const existing =
-    this.app.vault.getAbstractFileByPath(
-      path,
+  exists: async (
+    path: string,
+  ): Promise<boolean> => {
+    return (
+      this.app.vault.getAbstractFileByPath(path)
+      !== null
     );
+  },
 
-  if (existing) {
-    return;
-  }
+  write: async (
+    path: string,
+    content: string,
+  ): Promise<void> => {
+    const existing =
+      this.app.vault.getAbstractFileByPath(path);
 
-  await this.app.vault.create(
-    path,
-    content,
-  );
+    if (existing) {
+      return;
+    }
+
+    await this.app.vault.create(
+      path,
+      content,
+    );
+  },
 },
-      },
       new ObsidianTemplateRepository(
   this.app.vault.adapter,
   `${this.manifest.dir}/templates`,
@@ -349,11 +325,17 @@ private async initializeEngineeringWorkspace(): Promise<void> {
 
 
   try {
-    await command.execute();
+    const result =
+  await command.execute();
 
-    new Notice(
+new Notice(
+  [
       "Engineering workspace initialized.",
-    );
+      `Folders created: ${String(result.createdFolders.length)}`,
+      `Templates created: ${String(result.createdTemplates.length)}`,
+      `Templates skipped: ${String(result.skippedTemplates.length)}`,
+    ].join("\n"),
+  );
 
   } catch (error: unknown) {
     new Notice(

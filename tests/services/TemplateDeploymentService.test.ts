@@ -5,34 +5,48 @@ import { TemplateDeploymentService } from "../../src/services/TemplateDeployment
 
 describe("TemplateDeploymentService", () => {
 
-  it("deploys engineering templates", async () => {
+  it("deploys engineering templates and returns deployment report", async () => {
 
     const files: Record<string, string> = {};
 
 
     const writer = {
-      write: async (
-        path: string,
-        content: string,
-      ): Promise<void> => {
-        files[path] = content;
+
+  exists: async (
+    path: string,
+  ): Promise<boolean> => {
+    return path in files;
+  },
+
+
+  write: async (
+    path: string,
+    content: string,
+  ): Promise<void> => {
+    files[path] = content;
+  },
+
+};
+
+
+    const templates = {
+      getTemplate: async (
+        name: string,
+      ): Promise<string> => {
+        return `content-${name}`;
       },
     };
 
-const templates = {
-  getTemplate: async (
-    name: string,
-  ): Promise<string> =>
-    `content-${name}`,
-};
+
     const service =
       new TemplateDeploymentService(
-  writer,
-  templates,
+        writer,
+        templates,
       );
 
 
-    await service.deploy();
+    const result =
+      await service.deploy();
 
 
     expect(
@@ -66,10 +80,23 @@ const templates = {
 
 
     expect(
-      Object.keys(files).length,
+      Object.keys(files),
     )
-      .toBe(7);
+      .toHaveLength(7);
+
+
+    expect(
+      result.createdTemplates,
+    )
+      .toHaveLength(7);
+
+
+    expect(
+      result.skippedTemplates,
+    )
+      .toHaveLength(0);
   });
+
 
 
   it("writes every template exactly once", async () => {
@@ -78,27 +105,41 @@ const templates = {
 
 
     const writer = {
-      write: async (
-        path: string,
-      ): Promise<void> => {
-        paths.push(path);
+
+  exists: async (
+    _path: string,
+  ): Promise<boolean> => {
+    return false;
+  },
+
+
+  write: async (
+    path: string,
+  ): Promise<void> => {
+    paths.push(path);
+  },
+
+};
+
+
+    const templates = {
+      getTemplate: async (
+        name: string,
+      ): Promise<string> => {
+        return `content-${name}`;
       },
     };
 
-const templates = {
-  getTemplate: async (
-    name: string,
-  ): Promise<string> =>
-    `content-${name}`,
-};
+
     const service =
       new TemplateDeploymentService(
-  writer,
-  templates,
-);
+        writer,
+        templates,
+      );
 
 
-    await service.deploy();
+    const result =
+      await service.deploy();
 
 
     expect(
@@ -107,6 +148,90 @@ const templates = {
       .toBe(
         paths.length,
       );
+
+
+    expect(
+      result.createdTemplates,
+    )
+      .toHaveLength(7);
+
+
+    expect(
+      result.skippedTemplates,
+    )
+      .toHaveLength(0);
   });
+  it("skips existing templates", async () => {
+
+  const written: string[] = [];
+
+
+  const writer = {
+
+    exists: async (
+      path: string,
+    ): Promise<boolean> => {
+      return (
+        path ===
+        "Engineering/Requirements/Requirement Template.md"
+      );
+    },
+
+
+    write: async (
+      path: string,
+      _content: string,
+    ): Promise<void> => {
+      written.push(path);
+    },
+
+  };
+
+
+  const templates = {
+
+    getTemplate: async (
+      name: string,
+    ): Promise<string> => {
+      return `content-${name}`;
+    },
+
+  };
+
+
+  const service =
+    new TemplateDeploymentService(
+      writer,
+      templates,
+    );
+
+
+  const result =
+    await service.deploy();
+
+
+  expect(
+    result.skippedTemplates,
+  )
+    .toContain(
+      "Engineering/Requirements/Requirement Template.md",
+    );
+
+
+  expect(
+    result.createdTemplates,
+  )
+    .toHaveLength(6);
+
+
+  expect(
+    written,
+  )
+    .not
+    .toContain(
+      "Engineering/Requirements/Requirement Template.md",
+    );
+
+});
 
 });
