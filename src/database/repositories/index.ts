@@ -5,3 +5,7 @@ export { ComponentRepository } from "./ComponentRepository";
 export { VerificationRepository } from "./VerificationRepository";
 export { RiskRepository } from "./RiskRepository";
 export { AdrRepository } from "./AdrRepository";
+export * from "./DocumentRepository";
+export * from "./CadRepository";
+export * from "./SoftwareRepository";
+export * from "./FileRepository";
