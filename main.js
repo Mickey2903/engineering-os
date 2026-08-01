@@ -2288,13 +2288,117 @@ var ObsidianTemplateRepository = class {
   }
 };
 
+// src/services/WorkspaceMigrationRunner.ts
+var WorkspaceMigrationRunner = class {
+  constructor(versions, migrations, targetVersion) {
+    this.versions = versions;
+    this.migrations = migrations;
+    this.targetVersion = targetVersion;
+  }
+  async run() {
+    const current = await this.versions.getVersion();
+    console.log(
+      "[PLC Migration] Current version:",
+      current
+    );
+    if (current >= this.targetVersion) {
+      console.log(
+        "[PLC Migration] Workspace already up to date"
+      );
+      return;
+    }
+    console.log(
+      "[PLC Migration] Starting migration"
+    );
+    const version = await this.migrations.migrate(
+      current,
+      this.targetVersion
+    );
+    console.log(
+      "[PLC Migration] Migration result:",
+      version
+    );
+    await this.versions.setVersion(
+      version
+    );
+    console.log(
+      "[PLC Migration] Version saved"
+    );
+  }
+};
+
+// src/services/WorkspaceMigrationService.ts
+var WorkspaceMigrationService = class {
+  constructor(migrations) {
+    this.migrations = migrations;
+  }
+  async migrate(currentVersion, targetVersion) {
+    let version = currentVersion;
+    while (version < targetVersion) {
+      const migration = this.migrations.find(
+        (item) => item.fromVersion === version
+      );
+      if (!migration) {
+        throw new Error(
+          `No migration found from version ${String(version)}`
+        );
+      }
+      await migration.execute();
+      version = migration.toVersion;
+    }
+    return version;
+  }
+};
+
+// src/services/WorkspaceVersionService.ts
+var WorkspaceVersionService = class {
+  constructor(readFile, writeFile) {
+    this.readFile = readFile;
+    this.writeFile = writeFile;
+  }
+  async getVersion() {
+    return 0;
+  }
+  async setVersion(version) {
+    console.log(
+      "[PLC Version] Writing version:",
+      version
+    );
+    await this.writeFile(
+      "Engineering/.workspace-version.md",
+      `---
+version: ${String(version)}
+---
+`
+    );
+  }
+};
+
+// src/migrations/Migration001InitialWorkspace.ts
+var Migration001InitialWorkspace = class {
+  constructor(createFolder) {
+    this.createFolder = createFolder;
+  }
+  fromVersion = 0;
+  toVersion = 1;
+  async execute() {
+    await this.createFolder(
+      "Engineering/Reports"
+    );
+    await this.createFolder(
+      "Engineering/Interfaces"
+    );
+  }
+};
+
 // main.ts
 var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
   core;
   onload() {
     const logger = new ConsoleLogger("PLC Engineering Tools");
     this.core = new EngineeringCore(this.app, logger);
-    this.app.workspace.onLayoutReady(() => {
+    this.app.workspace.onLayoutReady(async () => {
+      await this.runWorkspaceMigrations();
       this.core?.initialize();
     });
     this.registerEvent(
@@ -2609,6 +2713,41 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
         "Failed to generate the traceability report."
       );
     }
+  }
+  async runWorkspaceMigrations() {
+    const versionService = new WorkspaceVersionService(
+      async (path) => {
+        return await this.app.vault.adapter.read(
+          path
+        );
+      },
+      async (path, content) => {
+        await this.app.vault.adapter.write(
+          path,
+          content
+        );
+      }
+    );
+    const migrationService = new WorkspaceMigrationService([
+      new Migration001InitialWorkspace(
+        async (path) => {
+          const existing = this.app.vault.getAbstractFileByPath(
+            path
+          );
+          if (!existing) {
+            await this.app.vault.createFolder(
+              path
+            );
+          }
+        }
+      )
+    ]);
+    const runner = new WorkspaceMigrationRunner(
+      versionService,
+      migrationService,
+      1
+    );
+    await runner.run();
   }
   onunload() {
     this.core?.shutdown();

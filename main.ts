@@ -43,6 +43,11 @@ import { ArchitectureHealthRule } from "./src/intelligence/rules/ArchitectureHea
 import { InitializeEngineeringWorkspaceCommand } from "./src/commands/InitializeEngineeringWorkspaceCommand";
 import { TemplateDeploymentService } from "./src/services/TemplateDeploymentService";
 import { ObsidianTemplateRepository } from "./src/services/ObsidianTemplateRepository";
+import { WorkspaceMigrationRunner } from "./src/services/WorkspaceMigrationRunner";
+import { WorkspaceMigrationService } from "./src/services/WorkspaceMigrationService";
+import { WorkspaceVersionService } from "./src/services/WorkspaceVersionService";
+
+import { Migration001InitialWorkspace } from "./src/migrations/Migration001InitialWorkspace";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
   private core: EngineeringCore | undefined;
@@ -51,9 +56,13 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
     const logger = new ConsoleLogger("PLC Engineering Tools");
     this.core = new EngineeringCore(this.app, logger);
 
-    this.app.workspace.onLayoutReady(() => {
-      this.core?.initialize();
-    });
+    this.app.workspace.onLayoutReady(async () => {
+
+  await this.runWorkspaceMigrations();
+
+  this.core?.initialize();
+
+});
 
     this.registerEvent(
       this.app.metadataCache.on("changed", (file) => {
@@ -455,6 +464,71 @@ if (!projects) {
       "Failed to generate the traceability report.",
     );
   }
+} 
+private async runWorkspaceMigrations(): Promise<void> {
+
+  const versionService =
+    new WorkspaceVersionService(
+
+      async (
+        path: string,
+      ): Promise<string> => {
+
+        return await this.app.vault.adapter.read(
+          path,
+        );
+
+      },
+
+
+      async (
+        path: string,
+        content: string,
+      ): Promise<void> => {
+
+        await this.app.vault.adapter.write(
+          path,
+          content,
+        );
+
+      },
+
+    );
+
+
+  const migrationService =
+    new WorkspaceMigrationService([
+      new Migration001InitialWorkspace(
+        async (
+          path: string,
+        ): Promise<void> => {
+
+          const existing =
+            this.app.vault.getAbstractFileByPath(
+              path,
+            );
+
+          if (!existing) {
+            await this.app.vault.createFolder(
+              path,
+            );
+          }
+
+        },
+      ),
+    ]);
+
+
+  const runner =
+    new WorkspaceMigrationRunner(
+      versionService,
+      migrationService,
+      1,
+    );
+
+
+  await runner.run();
+
 }
 public override onunload(): void {
     this.core?.shutdown();
