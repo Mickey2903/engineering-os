@@ -38,7 +38,9 @@ export class EngineeringAssetScanner {
 
   modifiedTime: Date.now(),
 
-  metadata: {},
+  metadata: {
+  projectId: this.detectProject(path),
+},
 };
   }
 
@@ -130,6 +132,25 @@ export class EngineeringAssetScanner {
 
     return tags;
   }
+  private detectProject(
+  path: string,
+): string | undefined {
+
+  const parts =
+    path.split("/");
+
+  const projectsIndex =
+    parts.indexOf("Projects");
+
+  if (
+    projectsIndex >= 0 &&
+    parts.length > projectsIndex + 1
+  ) {
+    return parts[projectsIndex + 1];
+  }
+
+  return undefined;
+}
 
 
   private generateId(

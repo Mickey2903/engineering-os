@@ -49,5 +49,17 @@ describe("EngineeringAssetScanner", () => {
     expect(file.fileType)
       .toBe("software");
   });
+  it("detects project from path", () => {
+  const scanner =
+    new EngineeringAssetScanner();
+
+  const file =
+    scanner.scanFile(
+      "Projects/PLC100/Hardware/CPU_Board.kicad_sch",
+    );
+
+  expect(file.metadata.projectId)
+    .toBe("PLC100");
+});
 
 });

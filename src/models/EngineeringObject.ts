@@ -7,13 +7,12 @@ export type EngineeringObjectType =
   | "architecture"
   | "interface"
   | "test-case"
-  | "manufacturing-item"
+    | "manufacturing-item"
   | "document"
-  | "unknown"
-  | "document"
-| "cad"
-| "software"
-| "file";
+  | "cad"
+  | "software"
+  | "file"
+  | "unknown";
 
 export type EngineeringStatus =
   | "draft"
