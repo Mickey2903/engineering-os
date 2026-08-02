@@ -493,12 +493,13 @@ var MetadataParser = class {
 
 // src/scanner/VaultScanner.ts
 var VaultScanner = class {
-  constructor(vault, metadataCache, parser, database, logger) {
+  constructor(vault, metadataCache, parser, database, logger, assetScanner) {
     this.vault = vault;
     this.metadataCache = metadataCache;
     this.parser = parser;
     this.database = database;
     this.logger = logger;
+    this.assetScanner = assetScanner;
   }
   scanFile(file) {
     if (file.extension !== "md") return;
@@ -506,14 +507,24 @@ var VaultScanner = class {
     const document = this.parser.parse(file, metadata);
     this.database.upsert(document);
   }
+  scanAssetFile(file) {
+    const asset = this.assetScanner.scanFile(
+      file.path
+    );
+    this.database.upsert(asset);
+  }
   scanAll() {
-    const files = this.vault.getMarkdownFiles();
+    const files = this.vault.getFiles();
     let indexed = 0;
     let errors = 0;
     this.database.clear();
     for (const file of files) {
       try {
-        this.scanFile(file);
+        if (file.extension === "md") {
+          this.scanFile(file);
+        } else {
+          this.scanAssetFile(file);
+        }
         indexed += 1;
       } catch (error) {
         errors += 1;
@@ -527,17 +538,107 @@ var VaultScanner = class {
   }
 };
 
+// src/services/EngineeringAssetScanner.ts
+var EngineeringAssetScanner = class {
+  scanFile(path) {
+    const extension = this.getExtension(path);
+    return {
+      id: this.generateId(path),
+      type: "file",
+      title: this.getFileName(path),
+      status: "active",
+      sourcePath: path,
+      path,
+      extension,
+      fileType: this.classifyExtension(extension),
+      tags: this.generateTags(path, extension),
+      links: [],
+      modifiedTime: Date.now(),
+      metadata: {
+        projectId: this.detectProject(path)
+      }
+    };
+  }
+  getExtension(path) {
+    const parts = path.split(".");
+    return parts.length > 1 ? parts.pop().toLowerCase() : "";
+  }
+  getFileName(path) {
+    return path.split("/").pop() ?? path;
+  }
+  classifyExtension(extension) {
+    switch (extension) {
+      case "step":
+      case "stp":
+      case "kicad_sch":
+      case "kicad_pcb":
+      case "kicad_pro":
+        return "cad";
+      case "pdf":
+      case "doc":
+      case "docx":
+      case "md":
+        return "document";
+      case "c":
+      case "cpp":
+      case "h":
+      case "hpp":
+      case "py":
+      case "ts":
+      case "js":
+        return "software";
+      default:
+        return "unknown";
+    }
+  }
+  generateTags(path, extension) {
+    const tags = [];
+    if (extension.startsWith("kicad") || extension === "step" || extension === "stp") {
+      tags.push("hardware");
+      tags.push("cad");
+    }
+    if (extension === "cpp" || extension === "c" || extension === "py" || extension === "ts") {
+      tags.push("software");
+    }
+    return tags;
+  }
+  detectProject(path) {
+    const parts = path.split("/");
+    const projectsIndex = parts.indexOf("Projects");
+    if (projectsIndex >= 0 && parts.length > projectsIndex + 1) {
+      return parts[projectsIndex + 1];
+    }
+    return void 0;
+  }
+  generateId(path) {
+    const hash = Math.abs(
+      this.simpleHash(path)
+    );
+    return `FILE-${hash}`;
+  }
+  simpleHash(input) {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      hash = (hash << 5) - hash + input.charCodeAt(i);
+      hash |= 0;
+    }
+    return hash;
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger) {
     this.app = app;
     this.logger = logger;
+    const parser = new MetadataParser();
     this.scanner = new VaultScanner(
       app.vault,
       app.metadataCache,
-      new MetadataParser(),
+      parser,
       this.database,
-      logger
+      logger,
+      new EngineeringAssetScanner()
     );
   }
   database = new EngineeringDatabase();

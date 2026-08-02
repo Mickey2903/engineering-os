@@ -3,23 +3,31 @@ import { EngineeringDatabase } from "../database/EngineeringDatabase";
 import { MetadataParser } from "../parser/MetadataParser";
 import { VaultScanner } from "../scanner/VaultScanner";
 import type { Logger } from "./Logger";
+import { EngineeringAssetScanner } from "../services/EngineeringAssetScanner";
 
 export class EngineeringCore {
   public readonly database = new EngineeringDatabase();
   private readonly scanner: VaultScanner;
 
   public constructor(
-    private readonly app: App,
-    private readonly logger: Logger,
-  ) {
-    this.scanner = new VaultScanner(
+  private readonly app: App,
+  private readonly logger: Logger,
+) {
+
+  const parser =
+    new MetadataParser();
+
+
+  this.scanner =
+    new VaultScanner(
       app.vault,
       app.metadataCache,
-      new MetadataParser(),
+      parser,
       this.database,
       logger,
+      new EngineeringAssetScanner(),
     );
-  }
+}
 
   public initialize(): void {
     const result = this.scanner.scanAll();
