@@ -12,6 +12,12 @@ import { ObsidianReportWriter } from "./src/obsidian/ObsidianReportWriter";
 import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
 import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
 import { EngineeringServices } from "./src/services/EngineeringServices";
+import { AskEngineeringAICommand } from "./src/commands/AskEngineeringAICommand";
+import { TextInputModal } from "./src/ui/TextInputModal";
+import {
+  EngineeringAIChatView,
+  ENGINEERING_AI_VIEW_TYPE,
+} from "./src/views/EngineeringAIChatView";
 import {
   DEFAULT_ENGINEERING_OS_SETTINGS,
   type EngineeringOSSettings,
@@ -74,6 +80,13 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
         new Notice(`Engineering index contains ${String(count)} Markdown documents.`);
       },
     });
+    this.registerView(
+  ENGINEERING_AI_VIEW_TYPE,
+  (leaf) =>
+    new EngineeringAIChatView(
+      leaf,
+    ),
+);
 
     this.addCommand({
       id: "run-engineering-health-check",
@@ -104,6 +117,89 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
     });
 
     logger.info("Plugin loaded.");
+    
+    this.addCommand({
+  id: "open-engineering-ai",
+  name: "Open Engineering AI",
+  callback: async () => {
+
+    const leaf =
+      this.app.workspace.getRightLeaf(
+        false,
+      );
+
+    await leaf?.setViewState({
+      type:
+        ENGINEERING_AI_VIEW_TYPE,
+
+      active:
+        true,
+    });
+
+    this.app.workspace.revealLeaf(
+      leaf!,
+    );
+
+  },
+});
+
+    this.addCommand({
+  id: "ask-engineering-ai",
+  name: "Ask Engineering AI",
+  callback: async () => {
+
+    if (!this.core) {
+      new Notice("Engineering core is not available.");
+      return;
+    }
+
+
+    const assistant =
+      this.core.createEngineeringAssistant();
+
+
+    const command =
+      new AskEngineeringAICommand(
+        assistant,
+      );
+
+
+    const objectId =
+  await new TextInputModal(
+    this.app,
+    "Engineering object ID",
+  ).openAndGetValue();
+
+    if (!objectId) {
+      return;
+    }
+
+
+    const question =
+  await new TextInputModal(
+    this.app,
+    "Question",
+  ).openAndGetValue();
+
+
+    if (!question) {
+      return;
+    }
+
+
+    const answer =
+      await command.execute(
+        objectId,
+        question,
+      );
+
+
+    new Notice(
+      answer,
+    );
+
+  },
+});
   }
 
   private async generateEngineeringReports(logger: ConsoleLogger): Promise<void> {
