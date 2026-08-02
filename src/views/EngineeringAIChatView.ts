@@ -3,6 +3,9 @@ import {
   WorkspaceLeaf,
 } from "obsidian";
 
+import { ConversationService } from "../services/ai/ConversationService";
+import type { EngineeringAssistantService } from "../services/ai/EngineeringAssistantService";
+
 
 export const ENGINEERING_AI_VIEW_TYPE =
   "engineering-ai-chat";
@@ -10,11 +13,26 @@ export const ENGINEERING_AI_VIEW_TYPE =
 
 export class EngineeringAIChatView extends ItemView {
 
+  private readonly conversation =
+    new ConversationService();
+
+
+  private readonly assistant:
+    EngineeringAssistantService;
+
+
+  private messagesEl:
+    HTMLElement | undefined;
+
 
   public constructor(
     leaf: WorkspaceLeaf,
+    assistant: EngineeringAssistantService,
   ) {
     super(leaf);
+
+    this.assistant =
+      assistant;
   }
 
 
@@ -50,11 +68,111 @@ export class EngineeringAIChatView extends ItemView {
     );
 
 
-    container.createEl(
+    const objectInput =
+      container.createEl(
+        "input",
+        {
+          type:
+            "text",
+
+          placeholder:
+            "Engineering object ID",
+        },
+      );
+
+
+    this.messagesEl =
+      container.createDiv();
+
+
+    const input =
+      container.createEl(
+        "input",
+        {
+          type:
+            "text",
+
+          placeholder:
+            "Ask engineering question...",
+        },
+      );
+
+
+    const button =
+      container.createEl(
+        "button",
+        {
+          text:
+            "Send",
+        },
+      );
+
+
+    button.onclick =
+      async () => {
+
+        const objectId =
+          objectInput.value.trim();
+
+
+        const question =
+          input.value.trim();
+
+
+        if (
+          !objectId ||
+          !question
+        ) {
+          return;
+        }
+
+
+        this.addMessage(
+          "user",
+          question,
+        );
+
+
+        input.value =
+          "";
+
+
+        const response =
+          await this.assistant.ask(
+            objectId,
+            question,
+          );
+
+
+        this.addMessage(
+          "assistant",
+          response.content,
+        );
+
+      };
+
+  }
+
+
+  private addMessage(
+    role: "user" | "assistant",
+    content: string,
+  ): void {
+
+    this.conversation[
+      role === "user"
+        ? "addUserMessage"
+        : "addAssistantMessage"
+    ](
+      content,
+    );
+
+
+    this.messagesEl?.createEl(
       "p",
       {
         text:
-          "AI assistant ready.",
+          `${role}: ${content}`,
       },
     );
 

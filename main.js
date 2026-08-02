@@ -1422,10 +1422,41 @@ var TextInputModal = class extends import_obsidian.Modal {
 
 // src/views/EngineeringAIChatView.ts
 var import_obsidian2 = require("obsidian");
+
+// src/services/ai/ConversationService.ts
+var ConversationService = class {
+  messages = [];
+  addUserMessage(content) {
+    this.messages.push({
+      role: "user",
+      content,
+      timestamp: Date.now()
+    });
+  }
+  addAssistantMessage(content) {
+    this.messages.push({
+      role: "assistant",
+      content,
+      timestamp: Date.now()
+    });
+  }
+  getMessages() {
+    return this.messages;
+  }
+  clear() {
+    this.messages.length = 0;
+  }
+};
+
+// src/views/EngineeringAIChatView.ts
 var ENGINEERING_AI_VIEW_TYPE = "engineering-ai-chat";
 var EngineeringAIChatView = class extends import_obsidian2.ItemView {
-  constructor(leaf) {
+  conversation = new ConversationService();
+  assistant;
+  messagesEl;
+  constructor(leaf, assistant) {
     super(leaf);
+    this.assistant = assistant;
   }
   getViewType() {
     return ENGINEERING_AI_VIEW_TYPE;
@@ -1442,10 +1473,56 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
         text: "Engineering AI"
       }
     );
-    container.createEl(
+    const objectInput = container.createEl(
+      "input",
+      {
+        type: "text",
+        placeholder: "Engineering object ID"
+      }
+    );
+    this.messagesEl = container.createDiv();
+    const input = container.createEl(
+      "input",
+      {
+        type: "text",
+        placeholder: "Ask engineering question..."
+      }
+    );
+    const button = container.createEl(
+      "button",
+      {
+        text: "Send"
+      }
+    );
+    button.onclick = async () => {
+      const objectId = objectInput.value.trim();
+      const question = input.value.trim();
+      if (!objectId || !question) {
+        return;
+      }
+      this.addMessage(
+        "user",
+        question
+      );
+      input.value = "";
+      const response = await this.assistant.ask(
+        objectId,
+        question
+      );
+      this.addMessage(
+        "assistant",
+        response.content
+      );
+    };
+  }
+  addMessage(role, content) {
+    this.conversation[role === "user" ? "addUserMessage" : "addAssistantMessage"](
+      content
+    );
+    this.messagesEl?.createEl(
       "p",
       {
-        text: "AI assistant ready."
+        text: `${role}: ${content}`
       }
     );
   }
@@ -1582,9 +1659,17 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
     });
     this.registerView(
       ENGINEERING_AI_VIEW_TYPE,
-      (leaf) => new EngineeringAIChatView(
-        leaf
-      )
+      (leaf) => {
+        if (!this.core) {
+          throw new Error(
+            "Engineering core is not initialized."
+          );
+        }
+        return new EngineeringAIChatView(
+          leaf,
+          this.core.createEngineeringAssistant()
+        );
+      }
     );
     this.addCommand({
       id: "run-engineering-health-check",

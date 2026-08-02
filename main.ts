@@ -82,10 +82,21 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
     });
     this.registerView(
   ENGINEERING_AI_VIEW_TYPE,
-  (leaf) =>
-    new EngineeringAIChatView(
+  (leaf) => {
+
+    if (!this.core) {
+      throw new Error(
+        "Engineering core is not initialized.",
+      );
+    }
+
+
+    return new EngineeringAIChatView(
       leaf,
-    ),
+      this.core.createEngineeringAssistant(),
+    );
+
+  },
 );
 
     this.addCommand({
