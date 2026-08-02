@@ -1,4 +1,4 @@
-import type { AIProvider } from "./AIProvider";
+import type { AIService } from "./AIService";
 import type { AIResponse } from "../../models/AIResponse";
 import type { EngineeringContextService } from "../knowledge/EngineeringContextService";
 import type { EngineeringContextExporter } from "../knowledge/EngineeringContextExporter";
@@ -7,7 +7,7 @@ import type { EngineeringContextExporter } from "../knowledge/EngineeringContext
 export class EngineeringAssistantService {
 
   public constructor(
-    private readonly aiProvider: AIProvider,
+    private readonly aiService: AIService,
     private readonly contextService: EngineeringContextService,
     private readonly exporter: EngineeringContextExporter,
   ) {}
@@ -40,7 +40,7 @@ ${question}
 `;
 
 
-    return this.aiProvider.generate({
+    return this.aiService.generate({
       prompt,
     });
 

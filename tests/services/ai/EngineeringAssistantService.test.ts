@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AIProvider } from "../../../src/services/ai/AIProvider";
-import type { AIRequest } from "../../../src/models/AIRequest";
-import type { AIResponse } from "../../../src/models/AIResponse";
+import type { AIService } from "../../../src/services/ai/AIService";
 
 import type { EngineeringContextService } from "../../../src/services/knowledge/EngineeringContextService";
 import type { EngineeringContextExporter } from "../../../src/services/knowledge/EngineeringContextExporter";
@@ -10,29 +8,6 @@ import type { EngineeringContextExporter } from "../../../src/services/knowledge
 import { EngineeringAssistantService } from "../../../src/services/ai/EngineeringAssistantService";
 
 
-class FakeAIProvider implements AIProvider {
-
-  public lastRequest?: AIRequest;
-
-
-  public async generate(
-    request: AIRequest,
-  ): Promise<AIResponse> {
-
-    this.lastRequest =
-      request;
-
-
-    return {
-      content:
-        "Test response",
-
-      model:
-        "fake-model",
-    };
-  }
-
-}
 
 
 describe("EngineeringAssistantService", () => {
@@ -40,9 +15,30 @@ describe("EngineeringAssistantService", () => {
 
   it("sends engineering context to AI provider", async () => {
 
-    const provider =
-      new FakeAIProvider();
+let lastRequest:
+  unknown;
 
+
+const aiService =
+  {
+    generate: async (
+      request: unknown,
+    ) => {
+
+      lastRequest =
+        request;
+
+
+      return {
+        content:
+          "Test response",
+
+        model:
+          "fake-model",
+      };
+
+    },
+  } as AIService;
 
     const contextService = {
 
@@ -92,11 +88,11 @@ describe("EngineeringAssistantService", () => {
 
 
     const assistant =
-      new EngineeringAssistantService(
-        provider,
-        contextService,
-        exporter,
-      );
+  new EngineeringAssistantService(
+    aiService,
+    contextService,
+    exporter,
+  );
 
 
     const response =
@@ -109,20 +105,24 @@ describe("EngineeringAssistantService", () => {
     expect(response.content)
       .toBe("Test response");
 
-
-    expect(provider.lastRequest)
-      .toBeDefined();
-
-
-    expect(provider.lastRequest?.prompt)
-      .toContain("CMP-001");
+     expect(lastRequest)
+  .toBeDefined();
 
 
-    expect(provider.lastRequest?.prompt)
-      .toContain(
-        "Welke bestanden horen bij deze component?",
-      );
+const request =
+  lastRequest as {
+    prompt: string;
+  };
 
+
+expect(request.prompt)
+  .toContain("CMP-001");
+
+
+expect(request.prompt)
+  .toContain(
+    "Welke bestanden horen bij deze component?",
+  );
   });
 
 

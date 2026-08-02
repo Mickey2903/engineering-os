@@ -7,6 +7,10 @@ import { EngineeringAssetScanner } from "../services/EngineeringAssetScanner";
 import type { EngineeringOSSettings } from "../settings/EngineeringOSSettings";
 import { AIConfigurationService } from "../services/ai/AIConfigurationService";
 import { AIService } from "../services/ai/AIService";
+import { EngineeringKnowledgeGraphService } from "../services/knowledge/EngineeringKnowledgeGraphService";
+import { EngineeringContextService } from "../services/knowledge/EngineeringContextService";
+import { EngineeringContextExporter } from "../services/knowledge/EngineeringContextExporter";
+import { EngineeringAssistantService } from "../services/ai/EngineeringAssistantService";
 
 export class EngineeringCore {
   public readonly database = new EngineeringDatabase();
@@ -54,6 +58,25 @@ public readonly aiService: AIService;
   public removeFile(path: string): void {
     this.scanner.remove(path);
   }
+  public createEngineeringAssistant(): EngineeringAssistantService {
+
+  const graphService =
+    new EngineeringKnowledgeGraphService(
+      this.database,
+    );
+
+
+  const snapshot =
+    graphService.createSnapshot();
+
+
+  return new EngineeringAssistantService(
+  this.aiService,
+  new EngineeringContextService(snapshot),
+  new EngineeringContextExporter(),
+);
+
+}
 
   public shutdown(): void {
     this.database.clear();

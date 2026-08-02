@@ -1,6 +1,6 @@
 {
   "name": "Engineering OS",
-  "version": "0.7.3.2",
+  "version": "0.8.0",
   "description": "Markdown-first engineering platform for Obsidian.",
   "main": "main.js",
   "type": "module",

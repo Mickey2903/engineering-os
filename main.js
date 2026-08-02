@@ -787,6 +787,205 @@ var AIService = class {
   }
 };
 
+// src/models/EngineeringEntity.ts
+var isVerification = (entity) => entity.type === "verification";
+var isAdr = (entity) => entity.type === "adr";
+
+// src/services/relationships/RelationshipGraph.ts
+var RelationshipGraph = class {
+  relationships;
+  outgoingMap = /* @__PURE__ */ new Map();
+  incomingMap = /* @__PURE__ */ new Map();
+  nodeIds = /* @__PURE__ */ new Set();
+  constructor(relationships) {
+    this.relationships = relationships;
+    const outgoing = /* @__PURE__ */ new Map();
+    const incoming = /* @__PURE__ */ new Map();
+    for (const relationship of relationships) {
+      this.nodeIds.add(relationship.sourceId);
+      this.nodeIds.add(relationship.targetId);
+      const outgoingRelationships = outgoing.get(relationship.sourceId) ?? [];
+      outgoingRelationships.push(relationship);
+      outgoing.set(relationship.sourceId, outgoingRelationships);
+      const incomingRelationships = incoming.get(relationship.targetId) ?? [];
+      incomingRelationships.push(relationship);
+      incoming.set(relationship.targetId, incomingRelationships);
+    }
+    for (const [id, values2] of outgoing) {
+      this.outgoingMap.set(id, values2);
+    }
+    for (const [id, values2] of incoming) {
+      this.incomingMap.set(id, values2);
+    }
+  }
+  all() {
+    return this.relationships;
+  }
+  outgoing(id) {
+    return this.outgoingMap.get(id) ?? [];
+  }
+  incoming(id) {
+    return this.incomingMap.get(id) ?? [];
+  }
+  hasNode(id) {
+    return this.nodeIds.has(id);
+  }
+  neighbors(id) {
+    return this.outgoing(id).map((relationship) => relationship.targetId);
+  }
+  hasRelationship(sourceId, targetId) {
+    return this.outgoing(sourceId).some((relationship) => relationship.targetId === targetId);
+  }
+};
+
+// src/services/RelationshipService.ts
+var RelationshipService = class {
+  constructor(database) {
+    this.database = database;
+  }
+  buildGraph() {
+    const relationships = [];
+    for (const entity of this.database.all()) {
+      for (const targetId of entity.links) {
+        relationships.push({
+          sourceId: entity.id,
+          targetId,
+          type: "link"
+        });
+      }
+      if (isVerification(entity)) {
+        for (const requirementId of entity.requirementIds) {
+          relationships.push({
+            sourceId: entity.id,
+            targetId: requirementId,
+            type: "verifies"
+          });
+          relationships.push({
+            sourceId: requirementId,
+            targetId: entity.id,
+            type: "verified-by"
+          });
+        }
+      }
+      if (isAdr(entity) && entity.supersedesId !== void 0) {
+        relationships.push({
+          sourceId: entity.id,
+          targetId: entity.supersedesId,
+          type: "supersedes"
+        });
+        relationships.push({
+          sourceId: entity.supersedesId,
+          targetId: entity.id,
+          type: "superseded-by"
+        });
+      }
+    }
+    return new RelationshipGraph(relationships);
+  }
+};
+
+// src/services/knowledge/EngineeringKnowledgeGraphService.ts
+var EngineeringKnowledgeGraphService = class {
+  constructor(database) {
+    this.database = database;
+    this.relationshipService = new RelationshipService(
+      database
+    );
+  }
+  relationshipService;
+  createSnapshot() {
+    const objects = this.database.all();
+    const graph = this.relationshipService.buildGraph();
+    return {
+      objects,
+      relationships: graph.all(),
+      graph
+    };
+  }
+};
+
+// src/services/knowledge/EngineeringContextService.ts
+var EngineeringContextService = class {
+  constructor(snapshot) {
+    this.snapshot = snapshot;
+  }
+  generateContext(id) {
+    const root = this.snapshot.objects.find(
+      (object) => object.id === id
+    );
+    const relatedIds = /* @__PURE__ */ new Set();
+    for (const relationship of this.snapshot.graph.outgoing(id)) {
+      relatedIds.add(
+        relationship.targetId
+      );
+    }
+    for (const relationship of this.snapshot.graph.incoming(id)) {
+      relatedIds.add(
+        relationship.sourceId
+      );
+    }
+    const related = this.snapshot.objects.filter(
+      (object) => relatedIds.has(object.id)
+    );
+    return {
+      root,
+      related
+    };
+  }
+};
+
+// src/services/knowledge/EngineeringContextExporter.ts
+var EngineeringContextExporter = class {
+  export(context) {
+    const objects = [
+      ...context.root ? [context.root] : [],
+      ...context.related
+    ];
+    return {
+      generatedAt: Date.now(),
+      ...context.root ? {
+        rootId: context.root.id,
+        rootType: context.root.type
+      } : {},
+      objects: objects.map(
+        (object) => ({
+          id: object.id,
+          type: object.type,
+          title: object.title,
+          status: object.status
+        })
+      )
+    };
+  }
+};
+
+// src/services/ai/EngineeringAssistantService.ts
+var EngineeringAssistantService = class {
+  constructor(aiService, contextService, exporter) {
+    this.aiService = aiService;
+    this.contextService = contextService;
+    this.exporter = exporter;
+  }
+  async ask(objectId, question) {
+    const context = this.contextService.generateContext(
+      objectId
+    );
+    const exported = this.exporter.export(
+      context
+    );
+    const prompt = `
+Engineering context:
+${JSON.stringify(exported, null, 2)}
+
+Question:
+${question}
+`;
+    return this.aiService.generate({
+      prompt
+    });
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger, settings) {
@@ -819,6 +1018,17 @@ var EngineeringCore = class {
   }
   removeFile(path) {
     this.scanner.remove(path);
+  }
+  createEngineeringAssistant() {
+    const graphService = new EngineeringKnowledgeGraphService(
+      this.database
+    );
+    const snapshot = graphService.createSnapshot();
+    return new EngineeringAssistantService(
+      this.aiService,
+      new EngineeringContextService(snapshot),
+      new EngineeringContextExporter()
+    );
   }
   shutdown() {
     this.database.clear();
@@ -1046,103 +1256,6 @@ var GraphAlgorithms = class {
     };
     visit(startId, [startId], /* @__PURE__ */ new Set([startId]));
     return paths;
-  }
-};
-
-// src/models/EngineeringEntity.ts
-var isVerification = (entity) => entity.type === "verification";
-var isAdr = (entity) => entity.type === "adr";
-
-// src/services/relationships/RelationshipGraph.ts
-var RelationshipGraph = class {
-  relationships;
-  outgoingMap = /* @__PURE__ */ new Map();
-  incomingMap = /* @__PURE__ */ new Map();
-  nodeIds = /* @__PURE__ */ new Set();
-  constructor(relationships) {
-    this.relationships = relationships;
-    const outgoing = /* @__PURE__ */ new Map();
-    const incoming = /* @__PURE__ */ new Map();
-    for (const relationship of relationships) {
-      this.nodeIds.add(relationship.sourceId);
-      this.nodeIds.add(relationship.targetId);
-      const outgoingRelationships = outgoing.get(relationship.sourceId) ?? [];
-      outgoingRelationships.push(relationship);
-      outgoing.set(relationship.sourceId, outgoingRelationships);
-      const incomingRelationships = incoming.get(relationship.targetId) ?? [];
-      incomingRelationships.push(relationship);
-      incoming.set(relationship.targetId, incomingRelationships);
-    }
-    for (const [id, values2] of outgoing) {
-      this.outgoingMap.set(id, values2);
-    }
-    for (const [id, values2] of incoming) {
-      this.incomingMap.set(id, values2);
-    }
-  }
-  all() {
-    return this.relationships;
-  }
-  outgoing(id) {
-    return this.outgoingMap.get(id) ?? [];
-  }
-  incoming(id) {
-    return this.incomingMap.get(id) ?? [];
-  }
-  hasNode(id) {
-    return this.nodeIds.has(id);
-  }
-  neighbors(id) {
-    return this.outgoing(id).map((relationship) => relationship.targetId);
-  }
-  hasRelationship(sourceId, targetId) {
-    return this.outgoing(sourceId).some((relationship) => relationship.targetId === targetId);
-  }
-};
-
-// src/services/RelationshipService.ts
-var RelationshipService = class {
-  constructor(database) {
-    this.database = database;
-  }
-  buildGraph() {
-    const relationships = [];
-    for (const entity of this.database.all()) {
-      for (const targetId of entity.links) {
-        relationships.push({
-          sourceId: entity.id,
-          targetId,
-          type: "link"
-        });
-      }
-      if (isVerification(entity)) {
-        for (const requirementId of entity.requirementIds) {
-          relationships.push({
-            sourceId: entity.id,
-            targetId: requirementId,
-            type: "verifies"
-          });
-          relationships.push({
-            sourceId: requirementId,
-            targetId: entity.id,
-            type: "verified-by"
-          });
-        }
-      }
-      if (isAdr(entity) && entity.supersedesId !== void 0) {
-        relationships.push({
-          sourceId: entity.id,
-          targetId: entity.supersedesId,
-          type: "supersedes"
-        });
-        relationships.push({
-          sourceId: entity.supersedesId,
-          targetId: entity.id,
-          type: "superseded-by"
-        });
-      }
-    }
-    return new RelationshipGraph(relationships);
   }
 };
 
