@@ -95,11 +95,11 @@ const aiService =
   );
 
 
-    const response =
-      await assistant.ask(
-        "CMP-001",
-        "Welke bestanden horen bij deze component?",
-      );
+   const response =
+  await assistant.ask(
+    "Welke bestanden horen bij deze component?",
+    "CMP-001",
+  );;
 
 
     expect(response.content)

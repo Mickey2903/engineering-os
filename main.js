@@ -787,6 +787,71 @@ var AIService = class {
   }
 };
 
+// src/services/ai/EngineeringAssistantService.ts
+var EngineeringAssistantService = class {
+  constructor(aiService, contextService, exporter) {
+    this.aiService = aiService;
+    this.contextService = contextService;
+    this.exporter = exporter;
+  }
+  async ask(question, objectId) {
+    let engineeringContext = "No engineering object context available.";
+    if (objectId) {
+      const context = this.contextService.generateContext(
+        objectId
+      );
+      const exported = this.exporter.export(
+        context
+      );
+      engineeringContext = JSON.stringify(
+        exported,
+        null,
+        2
+      );
+    }
+    const prompt = `
+Engineering context:
+${engineeringContext}
+
+Question:
+${question}
+`;
+    return this.aiService.generate({
+      prompt
+    });
+  }
+};
+
+// src/services/ai/EngineeringContextResolver.ts
+var EngineeringContextResolver = class {
+  constructor(database) {
+    this.database = database;
+  }
+  resolve(question, activeObjectId) {
+    if (activeObjectId) {
+      return {
+        objectId: activeObjectId,
+        confidence: "high"
+      };
+    }
+    const objects = this.database.all();
+    const match = objects.find(
+      (object) => question.includes(
+        object.id
+      )
+    );
+    if (match) {
+      return {
+        objectId: match.id,
+        confidence: "medium"
+      };
+    }
+    return {
+      confidence: "none"
+    };
+  }
+};
+
 // src/models/EngineeringEntity.ts
 var isVerification = (entity) => entity.type === "verification";
 var isAdr = (entity) => entity.type === "adr";
@@ -959,33 +1024,6 @@ var EngineeringContextExporter = class {
   }
 };
 
-// src/services/ai/EngineeringAssistantService.ts
-var EngineeringAssistantService = class {
-  constructor(aiService, contextService, exporter) {
-    this.aiService = aiService;
-    this.contextService = contextService;
-    this.exporter = exporter;
-  }
-  async ask(objectId, question) {
-    const context = this.contextService.generateContext(
-      objectId
-    );
-    const exported = this.exporter.export(
-      context
-    );
-    const prompt = `
-Engineering context:
-${JSON.stringify(exported, null, 2)}
-
-Question:
-${question}
-`;
-    return this.aiService.generate({
-      prompt
-    });
-  }
-};
-
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger, settings) {
@@ -996,6 +1034,9 @@ var EngineeringCore = class {
       new AIConfigurationService(
         settings
       )
+    );
+    this.contextResolver = new EngineeringContextResolver(
+      this.database
     );
     this.scanner = new VaultScanner(
       app.vault,
@@ -1008,16 +1049,24 @@ var EngineeringCore = class {
   }
   database = new EngineeringDatabase();
   scanner;
+  contextResolver;
   aiService;
   initialize() {
     const result = this.scanner.scanAll();
-    this.logger.info("Initial Vault scan complete.", result);
+    this.logger.info(
+      "Initial Vault scan complete.",
+      result
+    );
   }
   updateFile(file) {
-    this.scanner.scanFile(file);
+    this.scanner.scanFile(
+      file
+    );
   }
   removeFile(path) {
-    this.scanner.remove(path);
+    this.scanner.remove(
+      path
+    );
   }
   createEngineeringAssistant() {
     const graphService = new EngineeringKnowledgeGraphService(
@@ -1026,7 +1075,9 @@ var EngineeringCore = class {
     const snapshot = graphService.createSnapshot();
     return new EngineeringAssistantService(
       this.aiService,
-      new EngineeringContextService(snapshot),
+      new EngineeringContextService(
+        snapshot
+      ),
       new EngineeringContextExporter()
     );
   }
@@ -1453,10 +1504,14 @@ var ENGINEERING_AI_VIEW_TYPE = "engineering-ai-chat";
 var EngineeringAIChatView = class extends import_obsidian2.ItemView {
   conversation = new ConversationService();
   assistant;
+  contextResolver;
+  appInstance;
   messagesEl;
-  constructor(leaf, assistant) {
+  constructor(leaf, app, assistant, contextResolver) {
     super(leaf);
+    this.appInstance = app;
     this.assistant = assistant;
+    this.contextResolver = contextResolver;
   }
   getViewType() {
     return ENGINEERING_AI_VIEW_TYPE;
@@ -1473,11 +1528,10 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
         text: "Engineering AI"
       }
     );
-    const objectInput = container.createEl(
-      "input",
+    container.createEl(
+      "p",
       {
-        type: "text",
-        placeholder: "Engineering object ID"
+        text: "Context: automatisch bepaald"
       }
     );
     this.messagesEl = container.createDiv();
@@ -1495,35 +1549,59 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       }
     );
     button.onclick = async () => {
-      const objectId = objectInput.value.trim();
       const question = input.value.trim();
-      if (!objectId || !question) {
+      if (!question) {
         return;
       }
-      this.addMessage(
+      await this.addMessage(
         "user",
         question
       );
       input.value = "";
-      const response = await this.assistant.ask(
-        objectId,
-        question
+      const activeFile = this.appInstance.workspace.getActiveFile();
+      const resolvedContext = this.contextResolver.resolve(
+        question,
+        activeFile?.basename
       );
-      this.addMessage(
+      const response = await this.assistant.ask(
+        question,
+        resolvedContext.objectId
+      );
+      await this.addMessage(
         "assistant",
         response.content
       );
     };
+    input.addEventListener(
+      "keydown",
+      async (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          await button.click();
+        }
+      }
+    );
   }
-  addMessage(role, content) {
+  async addMessage(role, content) {
     this.conversation[role === "user" ? "addUserMessage" : "addAssistantMessage"](
       content
     );
-    this.messagesEl?.createEl(
-      "p",
+    const message = this.messagesEl?.createDiv();
+    if (!message) {
+      return;
+    }
+    message.createEl(
+      "strong",
       {
-        text: `${role}: ${content}`
+        text: `${role}:`
       }
+    );
+    const contentEl = message.createDiv();
+    await import_obsidian2.MarkdownRenderer.renderMarkdown(
+      content,
+      contentEl,
+      "",
+      this
     );
   }
   async onClose() {
@@ -1667,7 +1745,9 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
         }
         return new EngineeringAIChatView(
           leaf,
-          this.core.createEngineeringAssistant()
+          this.app,
+          this.core.createEngineeringAssistant(),
+          this.core.contextResolver
         );
       }
     );

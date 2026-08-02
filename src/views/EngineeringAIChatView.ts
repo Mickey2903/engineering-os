@@ -1,9 +1,12 @@
 import {
   ItemView,
   WorkspaceLeaf,
+  MarkdownRenderer,
+  App,
 } from "obsidian";
 
 import { ConversationService } from "../services/ai/ConversationService";
+import { EngineeringContextResolver } from "../services/ai/EngineeringContextResolver";
 import type { EngineeringAssistantService } from "../services/ai/EngineeringAssistantService";
 
 
@@ -21,18 +24,34 @@ export class EngineeringAIChatView extends ItemView {
     EngineeringAssistantService;
 
 
+  private readonly contextResolver:
+    EngineeringContextResolver;
+
+
+  private readonly appInstance:
+    App;
+
+
   private messagesEl:
     HTMLElement | undefined;
 
 
   public constructor(
     leaf: WorkspaceLeaf,
+    app: App,
     assistant: EngineeringAssistantService,
+    contextResolver: EngineeringContextResolver,
   ) {
     super(leaf);
 
+    this.appInstance =
+      app;
+
     this.assistant =
       assistant;
+
+    this.contextResolver =
+      contextResolver;
   }
 
 
@@ -68,17 +87,13 @@ export class EngineeringAIChatView extends ItemView {
     );
 
 
-    const objectInput =
-      container.createEl(
-        "input",
-        {
-          type:
-            "text",
-
-          placeholder:
-            "Engineering object ID",
-        },
-      );
+    container.createEl(
+      "p",
+      {
+        text:
+          "Context: automatisch bepaald",
+      },
+    );
 
 
     this.messagesEl =
@@ -111,23 +126,16 @@ export class EngineeringAIChatView extends ItemView {
     button.onclick =
       async () => {
 
-        const objectId =
-          objectInput.value.trim();
-
-
         const question =
           input.value.trim();
 
 
-        if (
-          !objectId ||
-          !question
-        ) {
+        if (!question) {
           return;
         }
 
 
-        this.addMessage(
+        await this.addMessage(
           "user",
           question,
         );
@@ -137,27 +145,57 @@ export class EngineeringAIChatView extends ItemView {
           "";
 
 
-        const response =
-          await this.assistant.ask(
-            objectId,
+        const activeFile =
+          this.appInstance.workspace.getActiveFile();
+
+
+        const resolvedContext =
+          this.contextResolver.resolve(
             question,
+            activeFile?.basename,
           );
 
 
-        this.addMessage(
+        const response =
+          await this.assistant.ask(
+            question,
+            resolvedContext.objectId,
+          );
+
+
+        await this.addMessage(
           "assistant",
           response.content,
         );
 
       };
 
+
+    input.addEventListener(
+      "keydown",
+      async (event) => {
+
+        if (
+          event.key === "Enter"
+          && !event.shiftKey
+        ) {
+
+          event.preventDefault();
+
+          await button.click();
+
+        }
+
+      },
+    );
+
   }
 
 
-  private addMessage(
+  private async addMessage(
     role: "user" | "assistant",
     content: string,
-  ): void {
+  ): Promise<void> {
 
     this.conversation[
       role === "user"
@@ -168,12 +206,33 @@ export class EngineeringAIChatView extends ItemView {
     );
 
 
-    this.messagesEl?.createEl(
-      "p",
+    const message =
+      this.messagesEl?.createDiv();
+
+
+    if (!message) {
+      return;
+    }
+
+
+    message.createEl(
+      "strong",
       {
         text:
-          `${role}: ${content}`,
+          `${role}:`,
       },
+    );
+
+
+    const contentEl =
+      message.createDiv();
+
+
+    await MarkdownRenderer.renderMarkdown(
+      content,
+      contentEl,
+      "",
+      this,
     );
 
   }

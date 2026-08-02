@@ -93,7 +93,9 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
 
     return new EngineeringAIChatView(
       leaf,
+      this.app,
       this.core.createEngineeringAssistant(),
+      this.core.contextResolver,
     );
 
   },

@@ -14,26 +14,42 @@ export class EngineeringAssistantService {
 
 
   public async ask(
-    objectId: string,
     question: string,
+    objectId?: string,
   ): Promise<AIResponse> {
 
-    const context =
-      this.contextService.generateContext(
-        objectId,
-      );
+    let engineeringContext =
+      "No engineering object context available.";
 
 
-    const exported =
-      this.exporter.export(
-        context,
-      );
+    if (objectId) {
+
+      const context =
+        this.contextService.generateContext(
+          objectId,
+        );
+
+
+      const exported =
+        this.exporter.export(
+          context,
+        );
+
+
+      engineeringContext =
+        JSON.stringify(
+          exported,
+          null,
+          2,
+        );
+
+    }
 
 
     const prompt =
       `
 Engineering context:
-${JSON.stringify(exported, null, 2)}
+${engineeringContext}
 
 Question:
 ${question}
