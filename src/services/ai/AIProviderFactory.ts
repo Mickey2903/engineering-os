@@ -3,6 +3,7 @@ import type { AIProvider } from "./AIProvider";
 
 import { MockAIProvider } from "./providers/MockAIProvider";
 import { OpenAIProvider } from "./providers/OpenAIProvider";
+import { OllamaProvider } from "./providers/OllamaProvider";
 
 
 export class AIProviderFactory {
@@ -24,9 +25,9 @@ export class AIProviderFactory {
 
 
       case "ollama":
-        throw new Error(
-          "Ollama provider is not implemented yet.",
-        );
+  return new OllamaProvider(
+    configuration,
+  );
 
     }
 
