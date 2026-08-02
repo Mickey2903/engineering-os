@@ -1,6 +1,6 @@
 {
-  "name": "plc-engineering-tools",
-  "version": "0.3.0",
+  "name": "Engineering OS",
+  "version": "0.7.3.2",
   "description": "Markdown-first engineering platform for Obsidian.",
   "main": "main.js",
   "type": "module",

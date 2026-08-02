@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ ! -f "package.json" || ! -f "main.ts" ]]; then
-  echo "Fout: voer dit script uit in de root van plc-engineering-tools."
+  echo "Fout: voer dit script uit in de root van engineering-os."
   exit 1
 fi
 

@@ -1,8 +1,8 @@
 # PLC Engineering Tools
 
-![CI](https://github.com/Mickey2903/plc-engineering-tools/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/github/license/Mickey2903/plc-engineering-tools)
-![Version](https://img.shields.io/github/v/release/Mickey2903/plc-engineering-tools?include_prereleases)
+![CI](https://github.com/Mickey2903/engineering-os/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/github/license/Mickey2903/engineering-os)
+![Version](https://img.shields.io/github/v/release/Mickey2903/engineering-os?include_prereleases)
 
 A **Markdown-first engineering platform** built as an Obsidian plugin
 for systems engineering, PLC development and technical documentation.

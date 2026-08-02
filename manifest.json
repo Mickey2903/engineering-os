@@ -1,7 +1,7 @@
 {
-  "id": "plc-engineering-tools",
-  "name": "PLC Engineering Tools",
-  "version": "0.3.0",
+  "id": "engineering-os",
+  "name": "Engineering OS",
+  "version": "0.7.3.2",
   "minAppVersion": "1.5.0",
   "description": "Markdown-first engineering platform for requirements, verification and traceability.",
   "author": "Michael Vingerhoets",
