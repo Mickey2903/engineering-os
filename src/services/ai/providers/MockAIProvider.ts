@@ -1,9 +1,15 @@
 import type { AIProvider } from "../AIProvider";
 import type { AIRequest } from "../../../models/AIRequest";
 import type { AIResponse } from "../../../models/AIResponse";
+import type { AIConfiguration } from "../../../models/AIConfiguration";
 
 
 export class MockAIProvider implements AIProvider {
+
+  public constructor(
+    private readonly configuration: AIConfiguration,
+  ) {}
+
 
   public async generate(
     request: AIRequest,
@@ -13,9 +19,17 @@ export class MockAIProvider implements AIProvider {
       content:
         `Mock response for: ${request.prompt}`,
 
-      model:
-        "mock",
+      ...(this.configuration.model
+        ? {
+            model:
+              this.configuration.model,
+          }
+        : {
+            model:
+              "mock",
+          }),
     };
+
   }
 
 }

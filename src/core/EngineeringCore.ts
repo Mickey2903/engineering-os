@@ -4,20 +4,33 @@ import { MetadataParser } from "../parser/MetadataParser";
 import { VaultScanner } from "../scanner/VaultScanner";
 import type { Logger } from "./Logger";
 import { EngineeringAssetScanner } from "../services/EngineeringAssetScanner";
+import type { EngineeringOSSettings } from "../settings/EngineeringOSSettings";
+import { AIConfigurationService } from "../services/ai/AIConfigurationService";
+import { AIService } from "../services/ai/AIService";
 
 export class EngineeringCore {
   public readonly database = new EngineeringDatabase();
   private readonly scanner: VaultScanner;
 
+public readonly aiService: AIService;
+
   public constructor(
   private readonly app: App,
   private readonly logger: Logger,
+  settings: EngineeringOSSettings,
 ) {
 
   const parser =
     new MetadataParser();
 
 
+  this.aiService =
+  new AIService(
+    new AIConfigurationService(
+      settings,
+    ),
+  );
+  
   this.scanner =
     new VaultScanner(
       app.vault,

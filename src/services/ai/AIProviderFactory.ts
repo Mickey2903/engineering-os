@@ -15,7 +15,9 @@ export class AIProviderFactory {
     switch (configuration.provider) {
 
       case "mock":
-        return new MockAIProvider();
+  return new MockAIProvider(
+    configuration,
+  );
 
 
       case "openai":

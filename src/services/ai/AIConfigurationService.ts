@@ -1,29 +1,43 @@
 import type { AIConfiguration } from "../../models/AIConfiguration";
+import type { EngineeringOSSettings } from "../../settings/EngineeringOSSettings";
 
 
 export class AIConfigurationService {
 
-  private configuration:
-    AIConfiguration = {
-      provider:
-        "mock",
-    };
+  public constructor(
+    private readonly settings:
+      EngineeringOSSettings,
+  ) {}
 
 
   public get():
     AIConfiguration {
 
-    return this.configuration;
+    return {
+      provider:
+        this.settings.aiProvider,
 
-  }
+      ...(this.settings.aiModel
+        ? {
+            model:
+              this.settings.aiModel,
+          }
+        : {}),
 
+      ...(this.settings.aiEndpoint
+        ? {
+            endpoint:
+              this.settings.aiEndpoint,
+          }
+        : {}),
 
-  public set(
-    configuration: AIConfiguration,
-  ): void {
-
-    this.configuration =
-      configuration;
+      ...(this.settings.aiApiKey
+        ? {
+            apiKey:
+              this.settings.aiApiKey,
+          }
+        : {}),
+    };
 
   }
 

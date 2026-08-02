@@ -9,12 +9,11 @@ describe("AIService", () => {
   it("uses configured provider to generate response", async () => {
 
     const configurationService = {
-
-      get: () => ({
-        provider: "mock",
-      }),
-
-    } as AIConfigurationService;
+  get: () => ({
+    provider: "mock",
+    model: "test-model",
+  }),
+} as AIConfigurationService;
 
 
     const service =
@@ -37,9 +36,9 @@ describe("AIService", () => {
 
 
     expect(response.model)
-      .toBe(
-        "mock",
-      );
+  .toBe(
+    "test-model",
+  );
 
   });
 

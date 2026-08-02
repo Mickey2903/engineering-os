@@ -626,12 +626,178 @@ var EngineeringAssetScanner = class {
   }
 };
 
+// src/services/ai/AIConfigurationService.ts
+var AIConfigurationService = class {
+  constructor(settings) {
+    this.settings = settings;
+  }
+  get() {
+    return {
+      provider: this.settings.aiProvider,
+      ...this.settings.aiModel ? {
+        model: this.settings.aiModel
+      } : {},
+      ...this.settings.aiEndpoint ? {
+        endpoint: this.settings.aiEndpoint
+      } : {},
+      ...this.settings.aiApiKey ? {
+        apiKey: this.settings.aiApiKey
+      } : {}
+    };
+  }
+};
+
+// src/services/ai/providers/MockAIProvider.ts
+var MockAIProvider = class {
+  constructor(configuration) {
+    this.configuration = configuration;
+  }
+  async generate(request) {
+    return {
+      content: `Mock response for: ${request.prompt}`,
+      ...this.configuration.model ? {
+        model: this.configuration.model
+      } : {
+        model: "mock"
+      }
+    };
+  }
+};
+
+// src/services/ai/providers/OpenAIProvider.ts
+var OpenAIProvider = class {
+  constructor(configuration) {
+    this.configuration = configuration;
+  }
+  async generate(request) {
+    if (!this.configuration.apiKey) {
+      throw new Error(
+        "OpenAI API key is missing."
+      );
+    }
+    const endpoint = this.configuration.endpoint ?? "https://api.openai.com/v1/chat/completions";
+    const response = await fetch(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.configuration.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.configuration.model ?? "gpt-5",
+          messages: [
+            {
+              role: "user",
+              content: request.prompt
+            }
+          ]
+        })
+      }
+    );
+    if (!response.ok) {
+      throw new Error(
+        `OpenAI request failed: ${response.status}`
+      );
+    }
+    const data = await response.json();
+    return {
+      content: data.choices?.[0]?.message?.content ?? "",
+      ...this.configuration.model ? {
+        model: this.configuration.model
+      } : {}
+    };
+  }
+};
+
+// src/services/ai/providers/OllamaProvider.ts
+var OllamaProvider = class {
+  constructor(configuration) {
+    this.configuration = configuration;
+  }
+  async generate(request) {
+    const endpoint = this.configuration.endpoint ?? "http://localhost:11434/api/chat";
+    const response = await fetch(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: this.configuration.model ?? "llama3",
+          messages: [
+            {
+              role: "user",
+              content: request.prompt
+            }
+          ],
+          stream: false
+        })
+      }
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Ollama request failed: ${response.status}`
+      );
+    }
+    const data = await response.json();
+    return {
+      content: data.message?.content ?? "",
+      ...this.configuration.model ? {
+        model: this.configuration.model
+      } : {}
+    };
+  }
+};
+
+// src/services/ai/AIProviderFactory.ts
+var AIProviderFactory = class {
+  static create(configuration) {
+    switch (configuration.provider) {
+      case "mock":
+        return new MockAIProvider(
+          configuration
+        );
+      case "openai":
+        return new OpenAIProvider(
+          configuration
+        );
+      case "ollama":
+        return new OllamaProvider(
+          configuration
+        );
+    }
+  }
+};
+
+// src/services/ai/AIService.ts
+var AIService = class {
+  constructor(configurationService) {
+    this.configurationService = configurationService;
+  }
+  async generate(request) {
+    const configuration = this.configurationService.get();
+    const provider = AIProviderFactory.create(
+      configuration
+    );
+    return provider.generate(
+      request
+    );
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
-  constructor(app, logger) {
+  constructor(app, logger, settings) {
     this.app = app;
     this.logger = logger;
     const parser = new MetadataParser();
+    this.aiService = new AIService(
+      new AIConfigurationService(
+        settings
+      )
+    );
     this.scanner = new VaultScanner(
       app.vault,
       app.metadataCache,
@@ -643,6 +809,7 @@ var EngineeringCore = class {
   }
   database = new EngineeringDatabase();
   scanner;
+  aiService;
   initialize() {
     const result = this.scanner.scanAll();
     this.logger.info("Initial Vault scan complete.", result);
@@ -1165,7 +1332,11 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
       )
     );
     const logger = new ConsoleLogger("Engineering OS");
-    this.core = new EngineeringCore(this.app, logger);
+    this.core = new EngineeringCore(
+      this.app,
+      logger,
+      this.settings
+    );
     this.app.workspace.onLayoutReady(() => {
       this.core?.initialize();
     });

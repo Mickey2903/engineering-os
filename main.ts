@@ -40,7 +40,12 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
 
 
   const logger = new ConsoleLogger("Engineering OS");
-    this.core = new EngineeringCore(this.app, logger);
+    this.core =
+  new EngineeringCore(
+    this.app,
+    logger,
+    this.settings,
+  )
 
     this.app.workspace.onLayoutReady(() => {
       this.core?.initialize();
