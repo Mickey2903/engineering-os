@@ -12,12 +12,34 @@ import { ObsidianReportWriter } from "./src/obsidian/ObsidianReportWriter";
 import { renderHealthReport } from "./src/rendering/HealthReportRenderer";
 import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
 import { EngineeringServices } from "./src/services/EngineeringServices";
+import {
+  DEFAULT_ENGINEERING_OS_SETTINGS,
+  type EngineeringOSSettings,
+} from "./src/settings/EngineeringOSSettings";
+
+import { EngineeringOSSettingTab } from "./src/settings/EngineeringOSSettingTab";
 
 export default class PlcEngineeringToolsPlugin extends Plugin {
+
   private core: EngineeringCore | undefined;
 
-  public override onload(): void {
-    const logger = new ConsoleLogger("PLC Engineering Tools");
+  public settings:
+    EngineeringOSSettings =
+      DEFAULT_ENGINEERING_OS_SETTINGS;
+
+  public override async onload(): Promise<void> {
+
+  await this.loadSettings();
+
+  this.addSettingTab(
+    new EngineeringOSSettingTab(
+      this.app,
+      this,
+    ),
+  );
+
+
+  const logger = new ConsoleLogger("Engineering OS");
     this.core = new EngineeringCore(this.app, logger);
 
     this.app.workspace.onLayoutReady(() => {
@@ -173,4 +195,21 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
     this.core?.shutdown();
     this.core = undefined;
   }
+  public async loadSettings(): Promise<void> {
+
+  this.settings = {
+    ...DEFAULT_ENGINEERING_OS_SETTINGS,
+    ...(await this.loadData()),
+  };
+
+}
+
+
+public async saveSettings(): Promise<void> {
+
+  await this.saveData(
+    this.settings,
+  );
+
+}
 }

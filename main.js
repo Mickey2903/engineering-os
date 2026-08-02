@@ -23,7 +23,7 @@ __export(main_exports, {
   default: () => PlcEngineeringToolsPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/commands/GenerateTraceabilityReportCommand.ts
 var GenerateTraceabilityReportCommand = class {
@@ -1066,11 +1066,105 @@ var EngineeringServices = class {
   }
 };
 
+// src/settings/EngineeringOSSettings.ts
+var DEFAULT_ENGINEERING_OS_SETTINGS = {
+  aiProvider: "mock"
+};
+
+// src/settings/EngineeringOSSettingTab.ts
+var import_obsidian = require("obsidian");
+var EngineeringOSSettingTab = class extends import_obsidian.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  plugin;
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl(
+      "h2",
+      {
+        text: "Engineering OS Settings"
+      }
+    );
+    new import_obsidian.Setting(containerEl).setName("AI Provider").addDropdown(
+      (dropdown) => dropdown.addOption(
+        "mock",
+        "Mock"
+      ).addOption(
+        "openai",
+        "OpenAI"
+      ).addOption(
+        "ollama",
+        "Ollama"
+      ).setValue(
+        this.plugin.settings.aiProvider
+      ).onChange(
+        async (value) => {
+          this.plugin.settings = {
+            ...this.plugin.settings,
+            aiProvider: value
+          };
+          await this.plugin.saveSettings();
+        }
+      )
+    );
+    new import_obsidian.Setting(containerEl).setName("AI Model").addText(
+      (text2) => text2.setValue(
+        this.plugin.settings.aiModel ?? ""
+      ).onChange(
+        async (value) => {
+          this.plugin.settings = {
+            ...this.plugin.settings,
+            aiModel: value
+          };
+          await this.plugin.saveSettings();
+        }
+      )
+    );
+    new import_obsidian.Setting(containerEl).setName("AI Endpoint").addText(
+      (text2) => text2.setValue(
+        this.plugin.settings.aiEndpoint ?? ""
+      ).onChange(
+        async (value) => {
+          this.plugin.settings = {
+            ...this.plugin.settings,
+            aiEndpoint: value
+          };
+          await this.plugin.saveSettings();
+        }
+      )
+    );
+    new import_obsidian.Setting(containerEl).setName("AI API Key").addText(
+      (text2) => text2.setValue(
+        this.plugin.settings.aiApiKey ?? ""
+      ).onChange(
+        async (value) => {
+          this.plugin.settings = {
+            ...this.plugin.settings,
+            aiApiKey: value
+          };
+          await this.plugin.saveSettings();
+        }
+      )
+    );
+  }
+};
+
 // main.ts
-var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
+var PlcEngineeringToolsPlugin = class extends import_obsidian2.Plugin {
   core;
-  onload() {
-    const logger = new ConsoleLogger("PLC Engineering Tools");
+  settings = DEFAULT_ENGINEERING_OS_SETTINGS;
+  async onload() {
+    await this.loadSettings();
+    this.addSettingTab(
+      new EngineeringOSSettingTab(
+        this.app,
+        this
+      )
+    );
+    const logger = new ConsoleLogger("Engineering OS");
     this.core = new EngineeringCore(this.app, logger);
     this.app.workspace.onLayoutReady(() => {
       this.core?.initialize();
@@ -1082,7 +1176,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
     );
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
-        if (file instanceof import_obsidian.TFile) {
+        if (file instanceof import_obsidian2.TFile) {
           this.core?.removeFile(file.path);
         }
       })
@@ -1092,7 +1186,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
       name: "Show engineering index status",
       callback: () => {
         const count = this.core?.database.count() ?? 0;
-        new import_obsidian.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
+        new import_obsidian2.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
       }
     });
     this.addCommand({
@@ -1123,7 +1217,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
   }
   async generateEngineeringReports(logger) {
     if (!this.core) {
-      new import_obsidian.Notice("Engineering core is not available.");
+      new import_obsidian2.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -1146,15 +1240,15 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
       const writer = new ObsidianReportWriter(this.app.vault);
       const command = new GenerateEngineeringReportsCommand(reportService, writer);
       await command.execute();
-      new import_obsidian.Notice("Engineering reports generated.");
+      new import_obsidian2.Notice("Engineering reports generated.");
     } catch (error) {
       logger.error("Failed to generate engineering reports.", error);
-      new import_obsidian.Notice("Failed to generate engineering reports.");
+      new import_obsidian2.Notice("Failed to generate engineering reports.");
     }
   }
   async runHealthCheck(logger) {
     if (!this.core) {
-      new import_obsidian.Notice("Engineering core is not available.");
+      new import_obsidian2.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -1168,15 +1262,15 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
         writer
       );
       await command.execute();
-      new import_obsidian.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
+      new import_obsidian2.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
     } catch (error) {
       logger.error("Failed to generate engineering health report.", error);
-      new import_obsidian.Notice("Failed to generate the engineering health report.");
+      new import_obsidian2.Notice("Failed to generate the engineering health report.");
     }
   }
   async generateTraceabilityReport(logger) {
     if (!this.core) {
-      new import_obsidian.Notice("Engineering core is not available.");
+      new import_obsidian2.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -1185,14 +1279,25 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian.Plugin {
       const writer = new ObsidianReportWriter(this.app.vault);
       const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
       await command.execute();
-      new import_obsidian.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
+      new import_obsidian2.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
     } catch (error) {
       logger.error("Failed to generate traceability report.", error);
-      new import_obsidian.Notice("Failed to generate the traceability report.");
+      new import_obsidian2.Notice("Failed to generate the traceability report.");
     }
   }
   onunload() {
     this.core?.shutdown();
     this.core = void 0;
+  }
+  async loadSettings() {
+    this.settings = {
+      ...DEFAULT_ENGINEERING_OS_SETTINGS,
+      ...await this.loadData()
+    };
+  }
+  async saveSettings() {
+    await this.saveData(
+      this.settings
+    );
   }
 };
