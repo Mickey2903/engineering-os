@@ -2,6 +2,7 @@ import type { AIConfiguration } from "../../models/AIConfiguration";
 import type { AIProvider } from "./AIProvider";
 
 import { MockAIProvider } from "./providers/MockAIProvider";
+import { OpenAIProvider } from "./providers/OpenAIProvider";
 
 
 export class AIProviderFactory {
@@ -17,9 +18,9 @@ export class AIProviderFactory {
 
 
       case "openai":
-        throw new Error(
-          "OpenAI provider is not implemented yet.",
-        );
+  return new OpenAIProvider(
+    configuration,
+  );
 
 
       case "ollama":
