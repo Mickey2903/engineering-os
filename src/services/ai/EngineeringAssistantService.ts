@@ -18,10 +18,12 @@ export class EngineeringAssistantService {
 
   public async getAvailableModels(): Promise<string[]> {
 
-    return this.aiService.getAvailableModels();
+  const models =
+    await this.aiService.getAvailableModels();
 
-  }
+  return models;
 
+}
 
   public async ask(
     question: string,

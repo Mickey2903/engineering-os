@@ -13,7 +13,7 @@ import {
 
 import type { EngineeringAssistantService } from "../services/ai/EngineeringAssistantService";
 import { AIStorageService } from "../services/ai/storage/AIStorageService";
-
+import type { AIStatusService } from "../services/ai/AIStatusService";
 export const ENGINEERING_AI_VIEW_TYPE =
   "engineering-ai-chat";
 
@@ -36,10 +36,16 @@ private readonly storage:
   private readonly contextResolver:
     EngineeringContextResolver;
 
-
+private readonly statusService:
+  AIStatusService;
+  
   private readonly appInstance:
     App;
-private inputEl:
+
+private statusEl:
+  HTMLElement | undefined;
+  
+  private inputEl:
   HTMLInputElement | undefined;
 
   private messagesEl:
@@ -70,11 +76,15 @@ private lastQuestion:
   leaf: WorkspaceLeaf,
   app: App,
   assistant: EngineeringAssistantService,
-  contextResolver: EngineeringContextResolver,
-  storage: AIStorageService,
+contextResolver: EngineeringContextResolver,
+storage: AIStorageService,
+statusService: AIStatusService,
 ) {
     super(leaf);
-
+	
+    this.statusService =
+  statusService;
+  
     this.appInstance =
       app;
 
@@ -109,8 +119,9 @@ private async loadModels(): Promise<void> {
   }
 
 
-  const models =
-    await this.assistant.getAvailableModels();
+
+const models =
+  await this.assistant.getAvailableModels();
 
 
   this.modelSelect.empty();
@@ -179,6 +190,24 @@ private async loadModels(): Promise<void> {
   };
 
 }
+private async updateAIStatus(): Promise<void> {
+
+  if (!this.statusEl) {
+    return;
+  }
+
+
+  const status =
+    await this.statusService.checkStatus();
+
+
+  this.statusEl.setText(
+    status.connected
+      ? `🟢 ${status.provider} connected`
+      : `🔴 ${status.provider} offline`,
+  );
+
+}
   private setLoading(
   loading: boolean,
 ): void {
@@ -232,6 +261,7 @@ container.addClass(
           "Engineering AI",
       },
     );
+   
 const aiWorkspace =
   container.createDiv({
     cls:
@@ -285,14 +315,28 @@ this.conversationsEl =
 
 await this.loadConversations();
 
-
-this.chatContainer =
-  aiWorkspace.createDiv({
+const aiSettings =
+  historyContainer.createDiv({
     cls:
-      "plc-eng-ai-chat-container",
+      "plc-eng-ai-sidebar-settings",
   });
+
+
+this.statusEl =
+  aiSettings.createEl(
+    "p",
+    {
+      cls:
+        "plc-eng-ai-status",
+    },
+  );
+
+
+await this.updateAIStatus();
+
+
 const modelContainer =
-  this.chatContainer?.createDiv({
+  aiSettings.createDiv({
     cls:
       "plc-eng-ai-model",
   });
@@ -302,9 +346,10 @@ modelContainer.createEl(
   "label",
   {
     text:
-      "Model: ",
+      "Model:",
   },
 );
+
 
 this.modelSelect =
   modelContainer.createEl(
@@ -325,9 +370,16 @@ const refreshButton =
 refreshButton.onclick =
   async () => {
 
+    await this.updateAIStatus();
+
     await this.loadModels();
 
   };
+this.chatContainer =
+  aiWorkspace.createDiv({
+    cls:
+      "plc-eng-ai-chat-container",
+  });
 
 const savedModel =
   await this.storage.getSelectedModel();

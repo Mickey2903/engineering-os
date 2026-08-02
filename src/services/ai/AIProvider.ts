@@ -8,6 +8,9 @@ export interface AIProvider {
     request: AIRequest,
   ): Promise<AIResponse>;
   
+  checkConnection():
+  Promise<boolean>;
+  
   getAvailableModels():
   Promise<string[]>;
 

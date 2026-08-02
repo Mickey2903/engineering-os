@@ -15,6 +15,9 @@ import { EngineeringServices } from "./src/services/EngineeringServices";
 import { AskEngineeringAICommand } from "./src/commands/AskEngineeringAICommand";
 import { TextInputModal } from "./src/ui/TextInputModal";
 import { AIStorageService } from "./src/services/ai/storage/AIStorageService";
+import { AIStatusService } from "./src/services/ai/AIStatusService";
+import { AIProviderFactory } from "./src/services/ai/AIProviderFactory";
+import { AIConfigurationService } from "./src/services/ai/AIConfigurationService";
 import {
   EngineeringAIChatView,
   ENGINEERING_AI_VIEW_TYPE,
@@ -92,12 +95,36 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
     }
 
 
-    return new EngineeringAIChatView(
+   const configurationService =
+  new AIConfigurationService(
+    this.settings,
+  );
+
+
+const configuration =
+  configurationService.get();
+
+
+const provider =
+  AIProviderFactory.create(
+    configuration,
+  );
+
+
+const statusService =
+  new AIStatusService(
+    provider,
+    configuration.provider,
+  );
+
+
+return new EngineeringAIChatView(
   leaf,
   this.app,
   this.core.createEngineeringAssistant(),
   this.core.contextResolver,
   new AIStorageService(this),
+  statusService,
 );
 
   },

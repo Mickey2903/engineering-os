@@ -391,3 +391,39 @@
 .plc-eng-ai-error button {
   margin-right: 8px;
 }
+
+.plc-eng-ai-status {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+}
+.plc-eng-ai-sidebar-settings {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+
+.plc-eng-ai-sidebar-settings .plc-eng-ai-model {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+
+.plc-eng-ai-sidebar-settings select {
+  width: 100%;
+}
+
+
+.plc-eng-ai-sidebar-settings button {
+  width: 100%;
+}
+
+
+.plc-eng-ai-status {
+  margin: 0 0 8px 0;
+  font-size: 0.85em;
+  color: var(--text-muted);
+}

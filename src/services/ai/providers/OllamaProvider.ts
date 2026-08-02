@@ -10,20 +10,19 @@ export class OllamaProvider implements AIProvider {
     private readonly configuration: AIConfiguration,
   ) {}
 
-public async getAvailableModels(): Promise<string[]> {
+public async getAvailableModels():
+Promise<string[]> {
 
   try {
 
     const response =
       await fetch(
-        `${this.baseUrl}/api/tags`,
+        `${this.configuration.endpoint ?? this.baseUrl}/api/tags`,
       );
 
 
     if (!response.ok) {
-
       return [];
-
     }
 
 
@@ -31,29 +30,62 @@ public async getAvailableModels(): Promise<string[]> {
       await response.json();
 
 
-    return data.models
-      ?.map(
-        (model: { name: string }) =>
-          model.name,
-      )
-      ?? [];
+    return (
+      data.models
+        ?.map(
+          (model: { name: string }) =>
+            model.name,
+        )
+        ?? []
+    );
+
 
   }
-  catch {
+  catch(error) {
+
+    console.error(
+      "Ollama model loading failed",
+      error,
+    );
 
     return [];
 
   }
 
 }
+public async checkConnection():
+  Promise<boolean> {
+
+  try {
+
+    const url =
+  this.configuration.endpoint ??
+  this.baseUrl;
+
+
+const response =
+  await fetch(
+    `${url}/api/tags`,
+  );
+
+
+    return response.ok;
+
+  }
+  catch {
+
+    return false;
+
+  }
+
+}
+
   public async generate(
     request: AIRequest,
   ): Promise<AIResponse> {
 
     const endpoint =
-      this.configuration.endpoint ??
-      "http://localhost:11434/api/chat";
-
+  `${this.configuration.endpoint ?? this.baseUrl}/api/chat`;
 
     const response =
       await fetch(
@@ -68,9 +100,8 @@ public async getAvailableModels(): Promise<string[]> {
 
           body: JSON.stringify({
             model:
-              this.configuration.model ??
-              "llama3",
-
+  this.configuration.model ??
+  "qwen2.5-coder:7b",
             messages: [
               {
                 role:

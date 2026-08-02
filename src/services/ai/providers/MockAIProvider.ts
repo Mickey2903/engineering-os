@@ -17,6 +17,13 @@ public async getAvailableModels(): Promise<string[]> {
   ];
 
 }
+public async checkConnection():
+  Promise<boolean> {
+
+  return true;
+
+}
+
   public async generate(
     request: AIRequest,
   ): Promise<AIResponse> {

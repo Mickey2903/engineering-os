@@ -7,17 +7,23 @@ import type { AIProvider } from "./AIProvider";
 
 export class AIService {
 
-  public constructor(
+public constructor(
   private readonly configurationService: AIConfigurationService,
-  private readonly provider?: AIProvider,
 ) {}
+
 public async getAvailableModels(): Promise<string[]> {
 
-  if (!this.provider) {
-    return [];
-  }
+  const configuration =
+    this.configurationService.get();
 
-  return this.provider.getAvailableModels();
+
+  const provider =
+    AIProviderFactory.create(
+      configuration,
+    );
+
+
+  return provider.getAvailableModels();
 
 }
   public async generate(

@@ -639,6 +639,8 @@ var AIConfigurationService = class {
       } : {},
       ...this.settings.aiEndpoint ? {
         endpoint: this.settings.aiEndpoint
+      } : this.settings.aiProvider === "ollama" ? {
+        endpoint: "http://localhost:11434"
       } : {},
       ...this.settings.aiApiKey ? {
         apiKey: this.settings.aiApiKey
@@ -656,6 +658,9 @@ var MockAIProvider = class {
     return [
       "mock-model"
     ];
+  }
+  async checkConnection() {
+    return true;
   }
   async generate(request) {
     return {
@@ -679,6 +684,9 @@ var OpenAIProvider = class {
       "gpt-4.1",
       "gpt-4.1-mini"
     ];
+  }
+  async checkConnection() {
+    return true;
   }
   async generate(request) {
     if (!this.configuration.apiKey) {
@@ -730,7 +738,7 @@ var OllamaProvider = class {
   async getAvailableModels() {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/tags`
+        `${this.configuration.endpoint ?? this.baseUrl}/api/tags`
       );
       if (!response.ok) {
         return [];
@@ -739,12 +747,27 @@ var OllamaProvider = class {
       return data.models?.map(
         (model) => model.name
       ) ?? [];
-    } catch {
+    } catch (error) {
+      console.error(
+        "Ollama model loading failed",
+        error
+      );
       return [];
     }
   }
+  async checkConnection() {
+    try {
+      const url = this.configuration.endpoint ?? this.baseUrl;
+      const response = await fetch(
+        `${url}/api/tags`
+      );
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
   async generate(request) {
-    const endpoint = this.configuration.endpoint ?? "http://localhost:11434/api/chat";
+    const endpoint = `${this.configuration.endpoint ?? this.baseUrl}/api/chat`;
     const response = await fetch(
       endpoint,
       {
@@ -753,7 +776,7 @@ var OllamaProvider = class {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: this.configuration.model ?? "llama3",
+          model: this.configuration.model ?? "qwen2.5-coder:7b",
           messages: [
             {
               role: "user",
@@ -801,15 +824,15 @@ var AIProviderFactory = class {
 
 // src/services/ai/AIService.ts
 var AIService = class {
-  constructor(configurationService, provider) {
+  constructor(configurationService) {
     this.configurationService = configurationService;
-    this.provider = provider;
   }
   async getAvailableModels() {
-    if (!this.provider) {
-      return [];
-    }
-    return this.provider.getAvailableModels();
+    const configuration = this.configurationService.get();
+    const provider = AIProviderFactory.create(
+      configuration
+    );
+    return provider.getAvailableModels();
   }
   async generate(request) {
     const configuration = this.configurationService.get();
@@ -831,7 +854,8 @@ var EngineeringAssistantService = class {
     this.relatedContextService = relatedContextService;
   }
   async getAvailableModels() {
-    return this.aiService.getAvailableModels();
+    const models = await this.aiService.getAvailableModels();
+    return models;
   }
   async ask(question, objectId, model) {
     let engineeringContext = "No engineering object context available.";
@@ -1716,6 +1740,21 @@ var AIStorageService = class {
   }
 };
 
+// src/services/ai/AIStatusService.ts
+var AIStatusService = class {
+  constructor(provider, providerName) {
+    this.provider = provider;
+    this.providerName = providerName;
+  }
+  async checkStatus() {
+    const connected = await this.provider.checkConnection();
+    return {
+      provider: this.providerName,
+      connected
+    };
+  }
+};
+
 // src/views/EngineeringAIChatView.ts
 var import_obsidian2 = require("obsidian");
 
@@ -1753,7 +1792,9 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
   assistant;
   storage;
   contextResolver;
+  statusService;
   appInstance;
+  statusEl;
   inputEl;
   messagesEl;
   conversationsEl;
@@ -1763,8 +1804,9 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
   loadingEl;
   lastQuestion;
   lastContextObjectId;
-  constructor(leaf, app, assistant, contextResolver, storage) {
+  constructor(leaf, app, assistant, contextResolver, storage, statusService) {
     super(leaf);
+    this.statusService = statusService;
     this.appInstance = app;
     this.assistant = assistant;
     this.contextResolver = contextResolver;
@@ -1812,6 +1854,15 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
         );
       }
     };
+  }
+  async updateAIStatus() {
+    if (!this.statusEl) {
+      return;
+    }
+    const status = await this.statusService.checkStatus();
+    this.statusEl.setText(
+      status.connected ? `\u{1F7E2} ${status.provider} connected` : `\u{1F534} ${status.provider} offline`
+    );
   }
   setLoading(loading) {
     if (!this.messagesEl) {
@@ -1867,16 +1918,23 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       cls: "plc-eng-ai-conversations"
     });
     await this.loadConversations();
-    this.chatContainer = aiWorkspace.createDiv({
-      cls: "plc-eng-ai-chat-container"
+    const aiSettings = historyContainer.createDiv({
+      cls: "plc-eng-ai-sidebar-settings"
     });
-    const modelContainer = this.chatContainer?.createDiv({
+    this.statusEl = aiSettings.createEl(
+      "p",
+      {
+        cls: "plc-eng-ai-status"
+      }
+    );
+    await this.updateAIStatus();
+    const modelContainer = aiSettings.createDiv({
       cls: "plc-eng-ai-model"
     });
     modelContainer.createEl(
       "label",
       {
-        text: "Model: "
+        text: "Model:"
       }
     );
     this.modelSelect = modelContainer.createEl(
@@ -1889,8 +1947,12 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       }
     );
     refreshButton.onclick = async () => {
+      await this.updateAIStatus();
       await this.loadModels();
     };
+    this.chatContainer = aiWorkspace.createDiv({
+      cls: "plc-eng-ai-chat-container"
+    });
     const savedModel = await this.storage.getSelectedModel();
     this.selectedModel = savedModel;
     await this.loadModels();
@@ -2240,7 +2302,9 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
 
 // src/settings/EngineeringOSSettings.ts
 var DEFAULT_ENGINEERING_OS_SETTINGS = {
-  aiProvider: "mock"
+  aiProvider: "ollama",
+  aiModel: "qwen2.5-coder:7b",
+  aiEndpoint: "http://localhost:11434"
 };
 
 // src/settings/EngineeringOSSettingTab.ts
@@ -2373,12 +2437,24 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
             "Engineering core is not initialized."
           );
         }
+        const configurationService = new AIConfigurationService(
+          this.settings
+        );
+        const configuration = configurationService.get();
+        const provider = AIProviderFactory.create(
+          configuration
+        );
+        const statusService = new AIStatusService(
+          provider,
+          configuration.provider
+        );
         return new EngineeringAIChatView(
           leaf,
           this.app,
           this.core.createEngineeringAssistant(),
           this.core.contextResolver,
-          new AIStorageService(this)
+          new AIStorageService(this),
+          statusService
         );
       }
     );

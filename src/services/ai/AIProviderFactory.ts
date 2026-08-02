@@ -9,6 +9,7 @@ import { OllamaProvider } from "./providers/OllamaProvider";
 export class AIProviderFactory {
 
   public static create(
+  
     configuration: AIConfiguration,
   ): AIProvider {
 

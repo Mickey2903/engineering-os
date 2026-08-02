@@ -24,13 +24,17 @@ export class AIConfigurationService {
           }
         : {}),
 
-      ...(this.settings.aiEndpoint
-        ? {
-            endpoint:
-              this.settings.aiEndpoint,
-          }
-        : {}),
-
+    ...(this.settings.aiEndpoint
+  ? {
+      endpoint:
+        this.settings.aiEndpoint,
+    }
+  : this.settings.aiProvider === "ollama"
+    ? {
+        endpoint:
+          "http://localhost:11434",
+      }
+    : {}),
       ...(this.settings.aiApiKey
         ? {
             apiKey:

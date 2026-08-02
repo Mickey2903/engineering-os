@@ -1,7 +1,10 @@
 {
-  "aiProvider": "mock",
+  "aiProvider": "ollama",
+  "aiModel": "",
+  "aiEndpoint": "",
   "engineering-os-ai": {
-    "activeConversationId": "2fa0ed61-3057-4d60-a5e7-6833832899ad",
+    "selectedModel": "qwen2.5-coder:14b",
+    "activeConversationId": "46f82b21-d797-4e8b-bf3e-42142a402fce",
     "conversations": [
       {
         "id": "c65f373e-5ca3-43d3-ac64-0beca03c5907",
@@ -15,6 +18,21 @@
           {
             "role": "assistant",
             "content": "Mock response for: \nEngineering context:\n{\n  \"generatedAt\": 1785692553236,\n  \"objects\": []\n}\n\nQuestion:\nAnalyseer de CPU Module\n"
+          }
+        ]
+      },
+      {
+        "id": "46f82b21-d797-4e8b-bf3e-42142a402fce",
+        "title": "wat is een plc",
+        "created": 1785702020556,
+        "messages": [
+          {
+            "role": "user",
+            "content": "wat is een plc"
+          },
+          {
+            "role": "assistant",
+            "content": "A PLC (Programmable Logic Controller) is an industrial computer used for automation of processes. It reads inputs, performs logic operations and controls outputs in industrial environments."
           }
         ]
       }

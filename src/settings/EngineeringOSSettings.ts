@@ -18,6 +18,12 @@ export const DEFAULT_ENGINEERING_OS_SETTINGS:
   EngineeringOSSettings = {
 
   aiProvider:
-    "mock",
+    "ollama",
+
+  aiModel:
+    "qwen2.5-coder:7b",
+
+  aiEndpoint:
+    "http://localhost:11434",
 
 };
