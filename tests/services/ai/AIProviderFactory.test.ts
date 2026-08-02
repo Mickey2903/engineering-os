@@ -9,9 +9,9 @@ describe("AIProviderFactory", () => {
   it("creates mock AI provider", () => {
 
     const provider =
-      AIProviderFactory.create(
-        "mock",
-      );
+      AIProviderFactory.create({
+  provider: "mock",
+});
 
 
     expect(provider)
@@ -25,9 +25,9 @@ describe("AIProviderFactory", () => {
   it("created provider can generate response", async () => {
 
     const provider =
-      AIProviderFactory.create(
-        "mock",
-      );
+      AIProviderFactory.create({
+  provider: "mock",
+});
 
 
     const response =
