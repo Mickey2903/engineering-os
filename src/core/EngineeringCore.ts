@@ -18,7 +18,8 @@ import { EngineeringContextResolver } from "../services/ai/EngineeringContextRes
 import { EngineeringKnowledgeGraphService } from "../services/knowledge/EngineeringKnowledgeGraphService";
 import { EngineeringContextService } from "../services/knowledge/EngineeringContextService";
 import { EngineeringContextExporter } from "../services/knowledge/EngineeringContextExporter";
-
+import { EngineeringRelatedContextService } 
+from "../services/knowledge/EngineeringRelatedContextService";
 
 export class EngineeringCore {
 
@@ -125,12 +126,11 @@ export class EngineeringCore {
 
 
     return new EngineeringAssistantService(
-      this.aiService,
-      new EngineeringContextService(
-        snapshot,
-      ),
-      new EngineeringContextExporter(),
-    );
+  this.aiService,
+  new EngineeringContextService(snapshot),
+  new EngineeringContextExporter(),
+  new EngineeringRelatedContextService(snapshot),
+);
 
   }
 

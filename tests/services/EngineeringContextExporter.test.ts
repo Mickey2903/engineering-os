@@ -69,6 +69,14 @@ describe("EngineeringContextExporter", () => {
 
     expect(result.objects[1]?.id)
       .toBe("FILE-001");
+      
+      expect(result.objects[0])
+  .toMatchObject({
+    id: "CMP-001",
+    title: "CPU Module",
+    sourcePath: "Components/CMP-001.md",
+    tags: [],
+  });
 
   });
 

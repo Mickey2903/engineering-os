@@ -652,6 +652,11 @@ var MockAIProvider = class {
   constructor(configuration) {
     this.configuration = configuration;
   }
+  async getAvailableModels() {
+    return [
+      "mock-model"
+    ];
+  }
   async generate(request) {
     return {
       content: `Mock response for: ${request.prompt}`,
@@ -668,6 +673,12 @@ var MockAIProvider = class {
 var OpenAIProvider = class {
   constructor(configuration) {
     this.configuration = configuration;
+  }
+  async getAvailableModels() {
+    return [
+      "gpt-4.1",
+      "gpt-4.1-mini"
+    ];
   }
   async generate(request) {
     if (!this.configuration.apiKey) {
@@ -714,6 +725,23 @@ var OpenAIProvider = class {
 var OllamaProvider = class {
   constructor(configuration) {
     this.configuration = configuration;
+  }
+  baseUrl = "http://localhost:11434";
+  async getAvailableModels() {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/api/tags`
+      );
+      if (!response.ok) {
+        return [];
+      }
+      const data = await response.json();
+      return data.models?.map(
+        (model) => model.name
+      ) ?? [];
+    } catch {
+      return [];
+    }
   }
   async generate(request) {
     const endpoint = this.configuration.endpoint ?? "http://localhost:11434/api/chat";
@@ -773,8 +801,15 @@ var AIProviderFactory = class {
 
 // src/services/ai/AIService.ts
 var AIService = class {
-  constructor(configurationService) {
+  constructor(configurationService, provider) {
     this.configurationService = configurationService;
+    this.provider = provider;
+  }
+  async getAvailableModels() {
+    if (!this.provider) {
+      return [];
+    }
+    return this.provider.getAvailableModels();
   }
   async generate(request) {
     const configuration = this.configurationService.get();
@@ -789,19 +824,32 @@ var AIService = class {
 
 // src/services/ai/EngineeringAssistantService.ts
 var EngineeringAssistantService = class {
-  constructor(aiService, contextService, exporter) {
+  constructor(aiService, contextService, exporter, relatedContextService) {
     this.aiService = aiService;
     this.contextService = contextService;
     this.exporter = exporter;
+    this.relatedContextService = relatedContextService;
   }
-  async ask(question, objectId) {
+  async getAvailableModels() {
+    return this.aiService.getAvailableModels();
+  }
+  async ask(question, objectId, model) {
     let engineeringContext = "No engineering object context available.";
     if (objectId) {
       const context = this.contextService.generateContext(
         objectId
       );
+      const related = this.relatedContextService.findRelated(
+        objectId
+      );
       const exported = this.exporter.export(
-        context
+        {
+          ...context,
+          related: [
+            ...context.related,
+            ...related
+          ]
+        }
       );
       engineeringContext = JSON.stringify(
         exported,
@@ -816,9 +864,12 @@ ${engineeringContext}
 Question:
 ${question}
 `;
-    return this.aiService.generate({
-      prompt
-    });
+    return this.aiService.generate(
+      {
+        prompt,
+        ...model ? { model } : {}
+      }
+    );
   }
 };
 
@@ -828,25 +879,75 @@ var EngineeringContextResolver = class {
     this.database = database;
   }
   resolve(question, activeObjectId) {
-    if (activeObjectId) {
-      return {
-        objectId: activeObjectId,
-        confidence: "high"
-      };
-    }
     const objects = this.database.all();
-    const match = objects.find(
-      (object) => question.includes(
-        object.id
+    const normalizedQuestion = question.toLowerCase();
+    const matches = objects.filter(
+      (object) => {
+        const idMatch = normalizedQuestion.includes(
+          object.id.toLowerCase()
+        );
+        if (idMatch) {
+          return true;
+        }
+        const normalizedTitle = object.title.toLowerCase();
+        if (normalizedQuestion.includes(
+          normalizedTitle
+        )) {
+          return true;
+        }
+        const titleWords = normalizedTitle.split(/\s+/).filter(
+          (word) => word.length > 2
+        );
+        const matchedWords = titleWords.filter(
+          (word) => normalizedQuestion.includes(
+            word
+          )
+        );
+        return matchedWords.length >= 2;
+      }
+    );
+    console.log(
+      "Context matches:",
+      matches.map(
+        (object) => ({
+          id: object.id,
+          title: object.title
+        })
       )
     );
-    if (match) {
+    if (matches.length > 0) {
       return {
-        objectId: match.id,
+        objects: matches.map(
+          (object) => ({
+            objectId: object.id,
+            objectTitle: object.title,
+            objectType: object.type,
+            confidence: "medium"
+          })
+        ),
         confidence: "medium"
       };
     }
+    if (activeObjectId) {
+      const activeObject = objects.find(
+        (object) => object.id === activeObjectId
+      );
+      if (activeObject !== void 0) {
+        return {
+          objects: [
+            {
+              objectId: activeObject.id,
+              objectTitle: activeObject.title,
+              objectType: activeObject.type,
+              confidence: "high"
+            }
+          ],
+          confidence: "high"
+        };
+      }
+    }
     return {
+      objects: [],
       confidence: "none"
     };
   }
@@ -1017,10 +1118,38 @@ var EngineeringContextExporter = class {
           id: object.id,
           type: object.type,
           title: object.title,
-          status: object.status
+          status: object.status,
+          sourcePath: object.sourcePath,
+          tags: object.tags,
+          metadata: object.metadata
         })
       )
     };
+  }
+};
+
+// src/services/knowledge/EngineeringRelatedContextService.ts
+var EngineeringRelatedContextService = class {
+  constructor(snapshot) {
+    this.snapshot = snapshot;
+  }
+  findRelated(objectId) {
+    const relatedIds = /* @__PURE__ */ new Set();
+    for (const relationship of this.snapshot.graph.outgoing(objectId)) {
+      relatedIds.add(
+        relationship.targetId
+      );
+    }
+    for (const relationship of this.snapshot.graph.incoming(objectId)) {
+      relatedIds.add(
+        relationship.sourceId
+      );
+    }
+    return this.snapshot.objects.filter(
+      (object) => relatedIds.has(
+        object.id
+      )
+    );
   }
 };
 
@@ -1075,10 +1204,9 @@ var EngineeringCore = class {
     const snapshot = graphService.createSnapshot();
     return new EngineeringAssistantService(
       this.aiService,
-      new EngineeringContextService(
-        snapshot
-      ),
-      new EngineeringContextExporter()
+      new EngineeringContextService(snapshot),
+      new EngineeringContextExporter(),
+      new EngineeringRelatedContextService(snapshot)
     );
   }
   shutdown() {
@@ -1471,6 +1599,123 @@ var TextInputModal = class extends import_obsidian.Modal {
   }
 };
 
+// src/services/ai/storage/AIStorageService.ts
+var AIStorageService = class {
+  constructor(plugin) {
+    this.plugin = plugin;
+  }
+  key = "engineering-os-ai";
+  async load() {
+    const data = await this.plugin.loadData();
+    return {
+      selectedModel: data?.[this.key]?.selectedModel,
+      activeConversationId: data?.[this.key]?.activeConversationId,
+      conversations: data?.[this.key]?.conversations ?? []
+    };
+  }
+  async save(data) {
+    const current = await this.plugin.loadData();
+    await this.plugin.saveData(
+      {
+        ...current,
+        [this.key]: data
+      }
+    );
+  }
+  async getSelectedModel() {
+    const data = await this.load();
+    return data.selectedModel;
+  }
+  async setSelectedModel(model) {
+    const data = await this.load();
+    await this.save(
+      {
+        ...data,
+        selectedModel: model
+      }
+    );
+  }
+  async getActiveConversationId() {
+    const data = await this.load();
+    return data.activeConversationId;
+  }
+  async setActiveConversationId(id) {
+    const data = await this.load();
+    await this.save(
+      {
+        ...data,
+        activeConversationId: id
+      }
+    );
+  }
+  async getConversations() {
+    const data = await this.load();
+    return data.conversations;
+  }
+  async saveConversation(conversation) {
+    const data = await this.load();
+    const existing = data.conversations.filter(
+      (item) => item.id !== conversation.id
+    );
+    await this.save(
+      {
+        ...data,
+        conversations: [
+          ...existing,
+          conversation
+        ]
+      }
+    );
+  }
+  async deleteEmptyConversations() {
+    const data = await this.load();
+    await this.save(
+      {
+        ...data,
+        conversations: data.conversations.filter(
+          (conversation) => conversation.messages.length > 0
+        )
+      }
+    );
+  }
+  async deleteConversation(id) {
+    const data = await this.load();
+    await this.save(
+      {
+        ...data,
+        conversations: data.conversations.filter(
+          (conversation) => conversation.id !== id
+        )
+      }
+    );
+  }
+  async updateConversationTitle(id, title) {
+    const data = await this.load();
+    const conversation = data.conversations.find(
+      (item) => item.id === id
+    );
+    if (!conversation) {
+      return;
+    }
+    conversation.title = title;
+    await this.save(
+      data
+    );
+  }
+  async createConversation(title) {
+    const conversation = {
+      id: crypto.randomUUID(),
+      title,
+      created: Date.now(),
+      messages: []
+    };
+    await this.saveConversation(
+      conversation
+    );
+    return conversation;
+  }
+};
+
 // src/views/EngineeringAIChatView.ts
 var import_obsidian2 = require("obsidian");
 
@@ -1503,15 +1748,27 @@ var ConversationService = class {
 var ENGINEERING_AI_VIEW_TYPE = "engineering-ai-chat";
 var EngineeringAIChatView = class extends import_obsidian2.ItemView {
   conversation = new ConversationService();
+  conversationId;
+  selectedModel;
   assistant;
+  storage;
   contextResolver;
   appInstance;
+  inputEl;
   messagesEl;
-  constructor(leaf, app, assistant, contextResolver) {
+  conversationsEl;
+  chatContainer;
+  modelSelect;
+  contextEl;
+  loadingEl;
+  lastQuestion;
+  lastContextObjectId;
+  constructor(leaf, app, assistant, contextResolver, storage) {
     super(leaf);
     this.appInstance = app;
     this.assistant = assistant;
     this.contextResolver = contextResolver;
+    this.storage = storage;
   }
   getViewType() {
     return ENGINEERING_AI_VIEW_TYPE;
@@ -1519,8 +1776,64 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
   getDisplayText() {
     return "Engineering AI";
   }
+  async loadModels() {
+    if (!this.modelSelect) {
+      return;
+    }
+    const models = await this.assistant.getAvailableModels();
+    this.modelSelect.empty();
+    if (models.length === 0) {
+      this.modelSelect.createEl(
+        "option",
+        {
+          value: "",
+          text: "Geen modellen beschikbaar"
+        }
+      );
+      return;
+    }
+    for (const model of models) {
+      const option = this.modelSelect.createEl(
+        "option",
+        {
+          value: model,
+          text: model
+        }
+      );
+      if (model === this.selectedModel) {
+        option.selected = true;
+      }
+    }
+    this.modelSelect.onchange = async () => {
+      this.selectedModel = this.modelSelect?.value;
+      if (this.selectedModel) {
+        await this.storage.setSelectedModel(
+          this.selectedModel
+        );
+      }
+    };
+  }
+  setLoading(loading) {
+    if (!this.messagesEl) {
+      return;
+    }
+    if (loading) {
+      this.loadingEl = this.messagesEl.createDiv({
+        cls: "plc-eng-ai-loading"
+      });
+      this.loadingEl.setText(
+        "\u23F3 AI analyseert..."
+      );
+    } else {
+      this.loadingEl?.remove();
+      this.loadingEl = void 0;
+    }
+  }
   async onOpen() {
     const container = this.contentEl;
+    container.addClass(
+      "plc-eng-ai-container"
+    );
     container.empty();
     container.createEl(
       "h2",
@@ -1528,51 +1841,145 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
         text: "Engineering AI"
       }
     );
-    container.createEl(
-      "p",
+    const aiWorkspace = container.createDiv({
+      cls: "plc-eng-ai-workspace"
+    });
+    const historyContainer = aiWorkspace.createDiv({
+      cls: "plc-eng-ai-history"
+    });
+    historyContainer.createEl(
+      "h3",
       {
-        text: "Context: automatisch bepaald"
+        text: "Conversations"
       }
     );
-    this.messagesEl = container.createDiv();
-    const input = container.createEl(
+    const newConversationButton = historyContainer.createEl(
+      "button",
+      {
+        text: "+ Nieuwe chat",
+        cls: "plc-eng-ai-new-chat"
+      }
+    );
+    newConversationButton.onclick = async () => {
+      await this.createNewConversation();
+    };
+    this.conversationsEl = historyContainer.createDiv({
+      cls: "plc-eng-ai-conversations"
+    });
+    await this.loadConversations();
+    this.chatContainer = aiWorkspace.createDiv({
+      cls: "plc-eng-ai-chat-container"
+    });
+    const modelContainer = this.chatContainer?.createDiv({
+      cls: "plc-eng-ai-model"
+    });
+    modelContainer.createEl(
+      "label",
+      {
+        text: "Model: "
+      }
+    );
+    this.modelSelect = modelContainer.createEl(
+      "select"
+    );
+    const refreshButton = modelContainer.createEl(
+      "button",
+      {
+        text: "\u21BB"
+      }
+    );
+    refreshButton.onclick = async () => {
+      await this.loadModels();
+    };
+    const savedModel = await this.storage.getSelectedModel();
+    this.selectedModel = savedModel;
+    await this.loadModels();
+    await this.storage.deleteEmptyConversations();
+    const activeConversationId = await this.storage.getActiveConversationId();
+    if (activeConversationId) {
+      this.conversationId = activeConversationId;
+    } else {
+      const conversation = await this.storage.createConversation(
+        "Engineering AI Session"
+      );
+      this.conversationId = conversation.id;
+      await this.storage.setActiveConversationId(
+        conversation.id
+      );
+    }
+    this.contextEl = this.chatContainer?.createEl(
+      "p",
+      {
+        cls: "plc-eng-ai-context"
+      }
+    );
+    this.updateContextDisplay({
+      objects: [],
+      confidence: "none"
+    });
+    this.messagesEl = this.chatContainer?.createDiv({
+      cls: "plc-eng-ai-messages"
+    });
+    this.inputEl = this.chatContainer?.createEl(
       "input",
       {
         type: "text",
         placeholder: "Ask engineering question..."
       }
     );
-    const button = container.createEl(
+    const button = this.chatContainer?.createEl(
       "button",
       {
         text: "Send"
       }
     );
     button.onclick = async () => {
-      const question = input.value.trim();
+      const question = this.inputEl?.value.trim() ?? "";
+      this.lastQuestion = question;
       if (!question) {
         return;
       }
-      await this.addMessage(
-        "user",
-        question
-      );
-      input.value = "";
       const activeFile = this.appInstance.workspace.getActiveFile();
       const resolvedContext = this.contextResolver.resolve(
         question,
         activeFile?.basename
       );
-      const response = await this.assistant.ask(
-        question,
-        resolvedContext.objectId
+      this.updateContextDisplay(
+        resolvedContext
       );
+      this.lastContextObjectId = resolvedContext.objects[0]?.objectId;
       await this.addMessage(
-        "assistant",
-        response.content
+        "user",
+        question
       );
+      if (this.inputEl) {
+        this.inputEl.value = "";
+      }
+      this.setLoading(
+        true
+      );
+      let response;
+      try {
+        const response2 = await this.assistant.ask(
+          question,
+          this.lastContextObjectId,
+          this.modelSelect?.value
+        );
+        await this.addMessage(
+          "assistant",
+          response2.content
+        );
+      } catch (error) {
+        this.showAIError(
+          error
+        );
+      } finally {
+        this.setLoading(
+          false
+        );
+      }
     };
-    input.addEventListener(
+    this.inputEl?.addEventListener(
       "keydown",
       async (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
@@ -1582,11 +1989,163 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       }
     );
   }
-  async addMessage(role, content) {
-    this.conversation[role === "user" ? "addUserMessage" : "addAssistantMessage"](
-      content
+  showAIError(error) {
+    const message = this.messagesEl?.createDiv({
+      cls: "plc-eng-ai-error"
+    });
+    if (!message) {
+      return;
+    }
+    message.createEl(
+      "strong",
+      {
+        text: "\u26A0 AI request mislukt"
+      }
     );
-    const message = this.messagesEl?.createDiv();
+    message.createEl(
+      "p",
+      {
+        text: String(error)
+      }
+    );
+    const editButton = message.createEl(
+      "button",
+      {
+        text: "\u270F Vraag aanpassen"
+      }
+    );
+    editButton.onclick = () => {
+      if (this.inputEl && this.lastQuestion) {
+        this.inputEl.value = this.lastQuestion;
+        this.inputEl.focus();
+      }
+    };
+    const retryButton = message.createEl(
+      "button",
+      {
+        text: "\u21BB Opnieuw proberen"
+      }
+    );
+    retryButton.onclick = async () => {
+      await this.retryLastRequest();
+    };
+  }
+  async retryLastRequest() {
+    if (!this.lastQuestion) {
+      return;
+    }
+    this.setLoading(true);
+    try {
+      const response = await this.assistant.ask(
+        this.lastQuestion,
+        this.lastContextObjectId,
+        this.modelSelect?.value
+      );
+      await this.addMessage(
+        "assistant",
+        response.content
+      );
+    } catch (error) {
+      this.showAIError(
+        error
+      );
+    } finally {
+      this.setLoading(false);
+    }
+  }
+  async openConversation(id) {
+    const conversations = await this.storage.getConversations();
+    const conversation = conversations.find(
+      (item) => item.id === id
+    );
+    if (!conversation) {
+      return;
+    }
+    this.messagesEl?.empty();
+    this.conversationId = conversation.id;
+    for (const message of conversation.messages) {
+      await this.renderMessage(
+        message.role,
+        message.content
+      );
+    }
+  }
+  async loadConversations() {
+    if (!this.conversationsEl) {
+      return;
+    }
+    this.conversationsEl.empty();
+    const conversations = await this.storage.getConversations();
+    if (conversations.length === 0) {
+      this.conversationsEl.createEl(
+        "p",
+        {
+          text: "Geen gesprekken opgeslagen"
+        }
+      );
+      return;
+    }
+    for (const conversation of conversations) {
+      const item = this.conversationsEl.createDiv({
+        cls: "plc-eng-ai-conversation-item"
+      });
+      const button = item.createEl(
+        "button",
+        {
+          text: conversation.title
+        }
+      );
+      button.onclick = async () => {
+        await this.openConversation(
+          conversation.id
+        );
+      };
+      const deleteButton = item.createEl(
+        "button",
+        {
+          text: "\u{1F5D1}"
+        }
+      );
+      deleteButton.onclick = async () => {
+        await this.storage.deleteConversation(
+          conversation.id
+        );
+        if (this.conversationId === conversation.id) {
+          this.conversationId = void 0;
+          this.messagesEl?.empty();
+        }
+        await this.loadConversations();
+      };
+    }
+  }
+  updateContextDisplay(context) {
+    if (!this.contextEl) {
+      return;
+    }
+    if (context.confidence === "none" || context.objects.length === 0) {
+      this.contextEl.setText(
+        "Context: \u26AA Geen engineering object"
+      );
+      return;
+    }
+    const contextLines = context.objects.map(
+      (object) => `${object.objectId} - ${object.objectTitle} (${object.objectType})`
+    );
+    this.contextEl.setText(
+      [
+        "Context:",
+        ...contextLines,
+        `Confidence: ${context.confidence}`
+      ].join("\n")
+    );
+  }
+  async renderMessage(role, content) {
+    const message = this.messagesEl?.createDiv({
+      cls: [
+        "plc-eng-ai-message",
+        role === "user" ? "plc-eng-ai-user" : "plc-eng-ai-assistant"
+      ]
+    });
     if (!message) {
       return;
     }
@@ -1596,6 +2155,27 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
         text: `${role}:`
       }
     );
+    if (role === "assistant") {
+      const copyButton = message.createEl(
+        "button",
+        {
+          text: "\u{1F4CB}",
+          cls: "plc-eng-ai-copy-button"
+        }
+      );
+      copyButton.onclick = async () => {
+        await navigator.clipboard.writeText(
+          content
+        );
+        copyButton.textContent = "\u2713";
+        setTimeout(
+          () => {
+            copyButton.textContent = "\u{1F4CB}";
+          },
+          1500
+        );
+      };
+    }
     const contentEl = message.createDiv();
     await import_obsidian2.MarkdownRenderer.renderMarkdown(
       content,
@@ -1603,6 +2183,56 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       "",
       this
     );
+    if (this.messagesEl) {
+      this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    }
+  }
+  async createNewConversation() {
+    const conversation = await this.storage.createConversation(
+      "Engineering AI Session"
+    );
+    this.conversationId = conversation.id;
+    await this.storage.setActiveConversationId(
+      conversation.id
+    );
+    this.messagesEl?.empty();
+    this.updateContextDisplay({
+      objects: [],
+      confidence: "none"
+    });
+    await this.loadConversations();
+  }
+  async addMessage(role, content) {
+    this.conversation[role === "user" ? "addUserMessage" : "addAssistantMessage"](
+      content
+    );
+    await this.renderMessage(
+      role,
+      content
+    );
+    if (!this.conversationId) {
+      return;
+    }
+    const conversations = await this.storage.getConversations();
+    const conversation = conversations.find(
+      (item) => item.id === this.conversationId
+    );
+    if (!conversation) {
+      return;
+    }
+    if (role === "user" && conversation.messages.length === 0) {
+      conversation.title = content.substring(0, 40);
+    }
+    conversation.messages.push(
+      {
+        role,
+        content
+      }
+    );
+    await this.storage.saveConversation(
+      conversation
+    );
+    await this.loadConversations();
   }
   async onClose() {
   }
@@ -1747,7 +2377,8 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
           leaf,
           this.app,
           this.core.createEngineeringAssistant(),
-          this.core.contextResolver
+          this.core.contextResolver,
+          new AIStorageService(this)
         );
       }
     );

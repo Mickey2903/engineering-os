@@ -1,3 +1,23 @@
 {
-  "aiProvider": "mock"
+  "aiProvider": "mock",
+  "engineering-os-ai": {
+    "activeConversationId": "2fa0ed61-3057-4d60-a5e7-6833832899ad",
+    "conversations": [
+      {
+        "id": "c65f373e-5ca3-43d3-ac64-0beca03c5907",
+        "title": "Analyseer de CPU Module",
+        "created": 1785692546420,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Analyseer de CPU Module"
+          },
+          {
+            "role": "assistant",
+            "content": "Mock response for: \nEngineering context:\n{\n  \"generatedAt\": 1785692553236,\n  \"objects\": []\n}\n\nQuestion:\nAnalyseer de CPU Module\n"
+          }
+        ]
+      }
+    ]
+  }
 }

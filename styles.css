@@ -1,52 +1,393 @@
+/* ================================
+   Engineering OS - General UI
+   ================================ */
+
+
 .plc-engineering-modal .setting-item-info {
   min-width: 12rem;
 }
+
+
 .plc-engineering-modal textarea {
   width: 100%;
   min-height: 7rem;
 }
+
+
+/* ================================
+   Sidebar
+   ================================ */
+
+
 .plc-eng-sidebar {
   padding: 10px;
 }
+
+
 .plc-eng-sidebar h3 {
   margin: 8px 0 12px;
 }
+
+
 .plc-eng-actions {
   display: grid;
   gap: 8px;
   margin-bottom: 16px;
 }
+
+
 .plc-eng-actions button {
   width: 100%;
 }
+
+
+/* ================================
+   Dashboard statistics
+   ================================ */
+
+
 .plc-eng-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 16px;
 }
+
+
 .plc-eng-stat {
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   padding: 10px;
   background: var(--background-secondary);
 }
+
+
 .plc-eng-stat strong {
   display: block;
   font-size: 1.35em;
 }
+
+
 .plc-eng-stat span {
   color: var(--text-muted);
   font-size: 0.85em;
 }
+
+
+/* ================================
+   Lists
+   ================================ */
+
+
 .plc-eng-list {
   margin: 0;
   padding-left: 18px;
 }
+
+
 .plc-eng-list li {
   margin: 5px 0;
 }
+
+
 .plc-eng-muted {
   color: var(--text-muted);
   font-size: 0.9em;
+}
+
+/* ================================
+   Engineering AI Chat
+   ================================ */
+
+
+.plc-eng-ai-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+
+/* ================================
+   Conversation history
+   ================================ */
+
+
+.plc-eng-ai-history {
+  width: 240px;
+  min-width: 220px;
+  max-width: 280px;
+
+  border-right: 1px solid var(--background-modifier-border);
+
+  padding-right: 8px;
+
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+.plc-eng-ai-history h3 {
+  margin-top: 0;
+}
+
+
+.plc-eng-ai-new-chat {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+
+.plc-eng-ai-conversations {
+  display: grid;
+  gap: 6px;
+}
+
+
+.plc-eng-ai-conversation-item {
+  display: flex;
+  gap: 6px;
+}
+
+
+.plc-eng-ai-conversation-item button:first-child {
+  flex: 1;
+  text-align: left;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.plc-eng-ai-conversation-item button:last-child {
+  flex-shrink: 0;
+}
+
+
+
+/* ================================
+   Active chat
+   ================================ */
+
+
+.plc-eng-ai-chat-container {
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+}
+
+
+/* ================================
+   Model selector
+   ================================ */
+
+
+.plc-eng-ai-model {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  margin-bottom: 10px;
+}
+
+
+.plc-eng-ai-model select {
+  flex: 1;
+}
+
+
+
+/* ================================
+   Context
+   ================================ */
+
+
+.plc-eng-ai-context {
+  padding: 8px;
+
+  margin-bottom: 10px;
+
+  border-radius: 8px;
+
+  background:
+    var(--background-secondary);
+
+  color:
+    var(--text-muted);
+}
+
+
+
+/* ================================
+   Messages
+   ================================ */
+
+
+.plc-eng-ai-messages {
+  flex: 1;
+
+  overflow-y: auto;
+
+  padding-right: 5px;
+
+  min-height: 0;
+}
+
+
+.plc-eng-ai-message {
+  user-select: text;
+
+  cursor: text;
+
+  margin-bottom: 12px;
+
+  padding: 10px;
+
+  border-radius: 8px;
+}
+
+
+.plc-eng-ai-message p,
+.plc-eng-ai-message li,
+.plc-eng-ai-message code,
+.plc-eng-ai-message pre {
+  user-select: text;
+}
+
+
+.plc-eng-ai-user {
+  background:
+    var(--background-secondary);
+}
+
+
+.plc-eng-ai-assistant {
+  background:
+    var(--background-primary-alt);
+}
+
+
+
+/* ================================
+   Copy button
+   ================================ */
+
+
+.plc-eng-ai-copy-button {
+  float: right;
+
+  opacity: 0.7;
+
+  margin-left: 8px;
+}
+
+
+.plc-eng-ai-copy-button:hover {
+  opacity: 1;
+}
+
+
+
+/* ================================
+   Input
+   ================================ */
+
+
+.plc-eng-ai-input {
+  display: flex;
+
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+
+.plc-eng-ai-input input {
+  flex: 1;
+}
+
+.plc-eng-ai-workspace {
+  display: flex;
+  flex-direction: row;
+
+  gap: 12px;
+
+  flex: 1;
+
+  min-height: 0;
+}
+
+.plc-eng-ai-conversation-item button:last-child {
+  width: 32px;
+  padding: 0;
+}
+
+/* ================================
+   Engineering AI Header
+   ================================ */
+
+
+.plc-eng-ai-container > h2 {
+  text-align: center;
+
+  font-size: 2em;
+
+  font-weight: 700;
+
+  padding-bottom: 10px;
+
+  margin-bottom: 12px;
+
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.plc-eng-ai-loading {
+  padding: 10px;
+
+  margin-bottom: 12px;
+
+  border-radius: 8px;
+
+  color: var(--text-muted);
+
+  font-style: italic;
+
+  background:
+    var(--background-secondary);
+}
+
+.plc-eng-ai-error {
+  background:
+    var(--background-modifier-error);
+
+  padding: 10px;
+
+  border-radius: 8px;
+
+  margin-bottom: 12px;
+}
+
+.plc-eng-ai-error {
+  background:
+    var(--background-modifier-error);
+
+  padding: 10px;
+
+  border-radius: 8px;
+
+  margin-bottom: 12px;
+}
+
+
+.plc-eng-ai-error button {
+  margin-right: 8px;
 }

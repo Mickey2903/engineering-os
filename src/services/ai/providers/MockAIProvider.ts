@@ -10,7 +10,13 @@ export class MockAIProvider implements AIProvider {
     private readonly configuration: AIConfiguration,
   ) {}
 
+public async getAvailableModels(): Promise<string[]> {
 
+  return [
+    "mock-model",
+  ];
+
+}
   public async generate(
     request: AIRequest,
   ): Promise<AIResponse> {

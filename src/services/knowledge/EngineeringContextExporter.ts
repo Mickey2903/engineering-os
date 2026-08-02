@@ -30,20 +30,29 @@ export class EngineeringContextExporter {
 
   objects:
     objects.map(
-      (object) => ({
-        id:
-          object.id,
+  (object) => ({
+    id:
+      object.id,
 
-        type:
-          object.type,
+    type:
+      object.type,
 
-        title:
-          object.title,
+    title:
+      object.title,
 
-        status:
-          object.status,
-      }),
-    ),
+    status:
+      object.status,
+
+    sourcePath:
+      object.sourcePath,
+
+    tags:
+      object.tags,
+
+    metadata:
+      object.metadata,
+  }),
+),
 };
 
   }

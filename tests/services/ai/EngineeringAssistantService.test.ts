@@ -87,11 +87,17 @@ const aiService =
     } as unknown as EngineeringContextExporter;
 
 
-    const assistant =
+    const relatedContextService = {
+
+  findRelated: () => [],
+
+} as any;
+const assistant =
   new EngineeringAssistantService(
     aiService,
     contextService,
     exporter,
+    relatedContextService,
   );
 
 

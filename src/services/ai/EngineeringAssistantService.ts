@@ -2,21 +2,33 @@ import type { AIService } from "./AIService";
 import type { AIResponse } from "../../models/AIResponse";
 import type { EngineeringContextService } from "../knowledge/EngineeringContextService";
 import type { EngineeringContextExporter } from "../knowledge/EngineeringContextExporter";
+import type { EngineeringRelatedContextService } from "../knowledge/EngineeringRelatedContextService";
 
 
 export class EngineeringAssistantService {
+
 
   public constructor(
     private readonly aiService: AIService,
     private readonly contextService: EngineeringContextService,
     private readonly exporter: EngineeringContextExporter,
+    private readonly relatedContextService: EngineeringRelatedContextService,
   ) {}
+
+
+  public async getAvailableModels(): Promise<string[]> {
+
+    return this.aiService.getAvailableModels();
+
+  }
 
 
   public async ask(
     question: string,
     objectId?: string,
+    model?: string,
   ): Promise<AIResponse> {
+
 
     let engineeringContext =
       "No engineering object context available.";
@@ -30,9 +42,22 @@ export class EngineeringAssistantService {
         );
 
 
+      const related =
+        this.relatedContextService.findRelated(
+          objectId,
+        );
+
+
       const exported =
         this.exporter.export(
-          context,
+          {
+            ...context,
+
+            related: [
+              ...context.related,
+              ...related,
+            ],
+          },
         );
 
 
@@ -56,9 +81,15 @@ ${question}
 `;
 
 
-    return this.aiService.generate({
-      prompt,
-    });
+    return this.aiService.generate(
+      {
+        prompt,
+
+        ...(model
+          ? { model }
+          : {}),
+      },
+    );
 
   }
 

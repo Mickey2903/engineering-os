@@ -9,7 +9,14 @@ export class OpenAIProvider implements AIProvider {
   public constructor(
     private readonly configuration: AIConfiguration,
   ) {}
+public async getAvailableModels(): Promise<string[]> {
 
+  return [
+    "gpt-4.1",
+    "gpt-4.1-mini",
+  ];
+
+}
 
   public async generate(
     request: AIRequest,

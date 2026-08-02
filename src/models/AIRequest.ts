@@ -4,4 +4,6 @@ export interface AIRequest {
 
   readonly context?: string;
 
+  readonly model?: string;
+
 }

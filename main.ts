@@ -14,6 +14,7 @@ import { TraceabilityRenderer } from "./src/rendering/TraceabilityRenderer";
 import { EngineeringServices } from "./src/services/EngineeringServices";
 import { AskEngineeringAICommand } from "./src/commands/AskEngineeringAICommand";
 import { TextInputModal } from "./src/ui/TextInputModal";
+import { AIStorageService } from "./src/services/ai/storage/AIStorageService";
 import {
   EngineeringAIChatView,
   ENGINEERING_AI_VIEW_TYPE,
@@ -92,11 +93,12 @@ export default class PlcEngineeringToolsPlugin extends Plugin {
 
 
     return new EngineeringAIChatView(
-      leaf,
-      this.app,
-      this.core.createEngineeringAssistant(),
-      this.core.contextResolver,
-    );
+  leaf,
+  this.app,
+  this.core.createEngineeringAssistant(),
+  this.core.contextResolver,
+  new AIStorageService(this),
+);
 
   },
 );
