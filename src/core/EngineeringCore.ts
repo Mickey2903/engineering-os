@@ -21,6 +21,7 @@ import { EngineeringContextExporter } from "../services/knowledge/EngineeringCon
 import { EngineeringRelatedContextService } 
 from "../services/knowledge/EngineeringRelatedContextService";
 import { ContextRankingService } from "../services/ai/memory/ContextRankingService";
+import { EngineeringContextFormatter } from "../services/ai/memory/EngineeringContextFormatter";
 
 
 export class EngineeringCore {
@@ -136,6 +137,7 @@ return new EngineeringAssistantService(
   new EngineeringContextExporter(),
   new EngineeringRelatedContextService(snapshot),
   this.contextResolver,
+  new EngineeringContextFormatter(),
 );
   }
 

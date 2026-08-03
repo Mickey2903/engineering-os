@@ -17,7 +17,7 @@ import type { AIStatusService } from "../services/ai/AIStatusService";
 export const ENGINEERING_AI_VIEW_TYPE =
   "engineering-ai-chat";
 
-
+import type { AIResponse } from "../models/AIResponse";
 export class EngineeringAIChatView extends ItemView {
 
   private readonly conversation =
@@ -71,6 +71,8 @@ private lastQuestion:
   private lastContextObjectId:
   string | undefined;
   
+  
+  
  
   public constructor(
   leaf: WorkspaceLeaf,
@@ -97,7 +99,50 @@ statusService: AIStatusService,
       this.storage =
   storage;
   }
+private updateAIContext(
+  context: AIResponse["context"],
+): void {
 
+  if (!context || !this.contextEl) {
+    return;
+  }
+
+
+  if (context.objects.length === 0) {
+
+    this.contextEl.setText(
+      "Engineering Context: ⚪ Geen gebruikte objecten",
+    );
+
+    return;
+
+  }
+
+
+  const lines = [
+    "Engineering Context:",
+  ];
+
+
+  for (const object of context.objects) {
+
+    lines.push(
+      `🟢 ${object.id} - ${object.title} (${object.type})`,
+    );
+
+  }
+
+
+  lines.push(
+    `Confidence: ${context.confidence}`,
+  );
+
+
+  this.contextEl.setText(
+    lines.join("\n"),
+  );
+
+}
 
   public getViewType(): string {
 
@@ -530,9 +575,17 @@ try {
 
 
   await this.addMessage(
-    "assistant",
-    response.content,
+  "assistant",
+  response.content,
+);
+
+if (response.context) {
+
+  this.updateAIContext(
+    response.context,
   );
+
+}
 
 
 }

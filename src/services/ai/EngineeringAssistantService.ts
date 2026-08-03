@@ -4,6 +4,7 @@ import type { EngineeringContextService } from "../knowledge/EngineeringContextS
 import type { EngineeringContextExporter } from "../knowledge/EngineeringContextExporter";
 import type { EngineeringRelatedContextService } from "../knowledge/EngineeringRelatedContextService";
 import type { EngineeringContextResolver } from "./EngineeringContextResolver";
+import type { EngineeringContextFormatter } from "./memory/EngineeringContextFormatter";
 
 export class EngineeringAssistantService {
 
@@ -14,6 +15,7 @@ public constructor(
   private readonly exporter: EngineeringContextExporter,
   private readonly relatedContextService: EngineeringRelatedContextService,
   private readonly contextResolver: EngineeringContextResolver,
+private readonly contextFormatter: EngineeringContextFormatter,
 ) {}
 
 
@@ -38,10 +40,13 @@ public async ask(
 
 
   const resolved =
-    this.contextResolver.resolve(
-      question,
-      objectId,
-    );
+  this.contextResolver.resolve(
+    question,
+    objectId,
+  );
+
+const resolvedContext =
+  resolved;
 
 
 if (resolved.objects.length > 0) {
@@ -64,28 +69,29 @@ if (resolved.objects.length > 0) {
         object.objectId,
       );
 
+if (context.root) {
 
-    combinedContexts.push(
-      {
-        ...context,
+  combinedContexts.push(
+    {
+      root:
+        context.root,
 
-        related: [
-          ...context.related,
-          ...related,
-        ],
+      related: [
+        ...context.related,
+        ...related,
+      ],
+    },
+  );
 
-      },
-    );
+}
 
   }
 
 
   engineeringContext =
-    JSON.stringify(
-      combinedContexts,
-      null,
-      2,
-    );
+  this.contextFormatter.format(
+    combinedContexts,
+  );
 
 }
 
@@ -103,7 +109,8 @@ ${question}
 `;
 
 
-  return this.aiService.generate(
+  const response =
+  await this.aiService.generate(
     {
       prompt,
 
@@ -112,6 +119,36 @@ ${question}
         : {}),
     },
   );
+
+
+return {
+  ...response,
+
+  context: {
+
+    objects:
+      resolvedContext.objects.map(
+        (object) => ({
+          id:
+            object.objectId,
+
+          title:
+            object.objectTitle,
+
+          type:
+            object.objectType,
+
+          confidence:
+            object.confidence,
+        }),
+      ),
+
+    confidence:
+      resolvedContext.confidence,
+
+  },
+
+};
 }
 }
 

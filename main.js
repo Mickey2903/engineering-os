@@ -847,12 +847,13 @@ var AIService = class {
 
 // src/services/ai/EngineeringAssistantService.ts
 var EngineeringAssistantService = class {
-  constructor(aiService, contextService, exporter, relatedContextService, contextResolver) {
+  constructor(aiService, contextService, exporter, relatedContextService, contextResolver, contextFormatter) {
     this.aiService = aiService;
     this.contextService = contextService;
     this.exporter = exporter;
     this.relatedContextService = relatedContextService;
     this.contextResolver = contextResolver;
+    this.contextFormatter = contextFormatter;
   }
   async getAvailableModels() {
     const models = await this.aiService.getAvailableModels();
@@ -864,6 +865,7 @@ var EngineeringAssistantService = class {
       question,
       objectId
     );
+    const resolvedContext = resolved;
     if (resolved.objects.length > 0) {
       const combinedContexts = [];
       for (const object of resolved.objects) {
@@ -873,20 +875,20 @@ var EngineeringAssistantService = class {
         const related = this.relatedContextService.findRelated(
           object.objectId
         );
-        combinedContexts.push(
-          {
-            ...context,
-            related: [
-              ...context.related,
-              ...related
-            ]
-          }
-        );
+        if (context.root) {
+          combinedContexts.push(
+            {
+              root: context.root,
+              related: [
+                ...context.related,
+                ...related
+              ]
+            }
+          );
+        }
       }
-      engineeringContext = JSON.stringify(
-        combinedContexts,
-        null,
-        2
+      engineeringContext = this.contextFormatter.format(
+        combinedContexts
       );
     }
     const prompt = `
@@ -896,12 +898,26 @@ ${engineeringContext}
 Question:
 ${question}
 `;
-    return this.aiService.generate(
+    const response = await this.aiService.generate(
       {
         prompt,
         ...model ? { model } : {}
       }
     );
+    return {
+      ...response,
+      context: {
+        objects: resolvedContext.objects.map(
+          (object) => ({
+            id: object.objectId,
+            title: object.objectTitle,
+            type: object.objectType,
+            confidence: object.confidence
+          })
+        ),
+        confidence: resolvedContext.confidence
+      }
+    };
   }
 };
 
@@ -1242,6 +1258,43 @@ var ContextRankingService = class {
   }
 };
 
+// src/services/ai/memory/EngineeringContextFormatter.ts
+var EngineeringContextFormatter = class {
+  format(contexts) {
+    if (contexts.length === 0) {
+      return "No engineering context available.";
+    }
+    const lines = [];
+    lines.push(
+      "Relevant engineering context:"
+    );
+    for (const context of contexts) {
+      lines.push(
+        "",
+        `Object: ${context.root.title}`,
+        `ID: ${context.root.id}`,
+        `Type: ${context.root.type}`
+      );
+      if (context.root.status) {
+        lines.push(
+          `Status: ${context.root.status}`
+        );
+      }
+      if (context.related.length > 0) {
+        lines.push(
+          "Related objects:"
+        );
+        for (const related of context.related) {
+          lines.push(
+            `- ${related.id}: ${related.title} (${related.type})`
+          );
+        }
+      }
+    }
+    return lines.join("\n");
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger, settings) {
@@ -1299,7 +1352,8 @@ var EngineeringCore = class {
       new EngineeringContextService(snapshot),
       new EngineeringContextExporter(),
       new EngineeringRelatedContextService(snapshot),
-      this.contextResolver
+      this.contextResolver,
+      new EngineeringContextFormatter()
     );
   }
   shutdown() {
@@ -1881,6 +1935,31 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
     this.contextResolver = contextResolver;
     this.storage = storage;
   }
+  updateAIContext(context) {
+    if (!context || !this.contextEl) {
+      return;
+    }
+    if (context.objects.length === 0) {
+      this.contextEl.setText(
+        "Engineering Context: \u26AA Geen gebruikte objecten"
+      );
+      return;
+    }
+    const lines = [
+      "Engineering Context:"
+    ];
+    for (const object of context.objects) {
+      lines.push(
+        `\u{1F7E2} ${object.id} - ${object.title} (${object.type})`
+      );
+    }
+    lines.push(
+      `Confidence: ${context.confidence}`
+    );
+    this.contextEl.setText(
+      lines.join("\n")
+    );
+  }
   getViewType() {
     return ENGINEERING_AI_VIEW_TYPE;
   }
@@ -2100,6 +2179,11 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
           "assistant",
           response2.content
         );
+        if (response2.context) {
+          this.updateAIContext(
+            response2.context
+          );
+        }
       } catch (error) {
         this.showAIError(
           error

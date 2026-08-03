@@ -9,7 +9,7 @@ import { EngineeringAssistantService } from "../../../src/services/ai/Engineerin
 
 import type { EngineeringContextResolver } from "../../../src/services/ai/EngineeringContextResolver";
 
-
+import { EngineeringContextFormatter } from "../../../src/services/ai/memory/EngineeringContextFormatter";
 describe("EngineeringAssistantService", () => {
 
 
@@ -109,12 +109,13 @@ const relatedContextService =
   
 const assistant =
   new EngineeringAssistantService(
-  aiService,
-  contextService,
-  exporter,
-  relatedContextService,
-  contextResolver,
-);
+    aiService,
+    contextService,
+    exporter,
+    relatedContextService,
+    contextResolver,
+    new EngineeringContextFormatter(),
+  );
 
 
    const response =
