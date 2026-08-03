@@ -4,10 +4,10 @@ import type { AIService } from "../../../src/services/ai/AIService";
 
 import type { EngineeringContextService } from "../../../src/services/knowledge/EngineeringContextService";
 import type { EngineeringContextExporter } from "../../../src/services/knowledge/EngineeringContextExporter";
-
+import type { EngineeringRelatedContextService } from "../../../src/services/knowledge/EngineeringRelatedContextService";
 import { EngineeringAssistantService } from "../../../src/services/ai/EngineeringAssistantService";
 
-
+import type { EngineeringContextResolver } from "../../../src/services/ai/EngineeringContextResolver";
 
 
 describe("EngineeringAssistantService", () => {
@@ -40,6 +40,21 @@ const aiService =
     },
   } as AIService;
 
+    const contextResolver =
+  {
+    resolve: () => ({
+      objects: [
+        {
+          objectId: "CMP-001",
+          objectTitle: "CPU Module",
+          objectType: "component",
+          confidence: "high",
+        },
+      ],
+      confidence: "high",
+    }),
+  } as unknown as EngineeringContextResolver;
+    
     const contextService = {
 
       generateContext: () => ({
@@ -87,18 +102,19 @@ const aiService =
     } as unknown as EngineeringContextExporter;
 
 
-    const relatedContextService = {
-
-  findRelated: () => [],
-
-} as any;
+const relatedContextService =
+  {
+    findRelated: () => [],
+  } as unknown as EngineeringRelatedContextService;
+  
 const assistant =
   new EngineeringAssistantService(
-    aiService,
-    contextService,
-    exporter,
-    relatedContextService,
-  );
+  aiService,
+  contextService,
+  exporter,
+  relatedContextService,
+  contextResolver,
+);
 
 
    const response =

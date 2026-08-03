@@ -847,11 +847,12 @@ var AIService = class {
 
 // src/services/ai/EngineeringAssistantService.ts
 var EngineeringAssistantService = class {
-  constructor(aiService, contextService, exporter, relatedContextService) {
+  constructor(aiService, contextService, exporter, relatedContextService, contextResolver) {
     this.aiService = aiService;
     this.contextService = contextService;
     this.exporter = exporter;
     this.relatedContextService = relatedContextService;
+    this.contextResolver = contextResolver;
   }
   async getAvailableModels() {
     const models = await this.aiService.getAvailableModels();
@@ -859,27 +860,34 @@ var EngineeringAssistantService = class {
   }
   async ask(question, objectId, model) {
     let engineeringContext = "No engineering object context available.";
-    if (objectId) {
-      const context = this.contextService.generateContext(
-        objectId
-      );
-      const related = this.relatedContextService.findRelated(
-        objectId
-      );
-      const exported = this.exporter.export(
-        {
-          ...context,
-          related: [
-            ...context.related,
-            ...related
-          ]
-        }
-      );
-      engineeringContext = JSON.stringify(
-        exported,
-        null,
-        2
-      );
+    const resolved = this.contextResolver.resolve(
+      question,
+      objectId
+    );
+    if (resolved.objects.length > 0) {
+      const primaryObject = resolved.objects[0];
+      if (primaryObject) {
+        const context = this.contextService.generateContext(
+          primaryObject.objectId
+        );
+        const related = this.relatedContextService.findRelated(
+          primaryObject.objectId
+        );
+        const exported = this.exporter.export(
+          {
+            ...context,
+            related: [
+              ...context.related,
+              ...related
+            ]
+          }
+        );
+        engineeringContext = JSON.stringify(
+          exported,
+          null,
+          2
+        );
+      }
     }
     const prompt = `
 Engineering context:
@@ -899,61 +907,41 @@ ${question}
 
 // src/services/ai/EngineeringContextResolver.ts
 var EngineeringContextResolver = class {
-  constructor(database) {
+  constructor(rankingService, database) {
+    this.rankingService = rankingService;
     this.database = database;
   }
   resolve(question, activeObjectId) {
-    const objects = this.database.all();
-    const normalizedQuestion = question.toLowerCase();
-    const matches = objects.filter(
-      (object) => {
-        const idMatch = normalizedQuestion.includes(
-          object.id.toLowerCase()
-        );
-        if (idMatch) {
-          return true;
-        }
-        const normalizedTitle = object.title.toLowerCase();
-        if (normalizedQuestion.includes(
-          normalizedTitle
-        )) {
-          return true;
-        }
-        const titleWords = normalizedTitle.split(/\s+/).filter(
-          (word) => word.length > 2
-        );
-        const matchedWords = titleWords.filter(
-          (word) => normalizedQuestion.includes(
-            word
-          )
-        );
-        return matchedWords.length >= 2;
-      }
+    const ranked = this.rankingService.rank(
+      question
     );
     console.log(
       "Context matches:",
-      matches.map(
+      ranked.map(
         (object) => ({
-          id: object.id,
-          title: object.title
+          id: object.objectId,
+          title: object.objectTitle,
+          score: object.score,
+          reason: object.reason
         })
       )
     );
-    if (matches.length > 0) {
+    if (ranked.length > 0) {
+      const topMatch = ranked[0];
       return {
-        objects: matches.map(
+        objects: ranked.map(
           (object) => ({
-            objectId: object.id,
-            objectTitle: object.title,
-            objectType: object.type,
-            confidence: "medium"
+            objectId: object.objectId,
+            objectTitle: object.objectTitle,
+            objectType: object.objectType,
+            confidence: object.score >= 80 ? "high" : "medium"
           })
         ),
-        confidence: "medium"
+        confidence: topMatch !== void 0 && topMatch.score >= 80 ? "high" : "medium"
       };
     }
     if (activeObjectId) {
-      const activeObject = objects.find(
+      const activeObject = this.database.all().find(
         (object) => object.id === activeObjectId
       );
       if (activeObject !== void 0) {
@@ -1177,6 +1165,69 @@ var EngineeringRelatedContextService = class {
   }
 };
 
+// src/services/ai/memory/ContextRankingService.ts
+var ContextRankingService = class {
+  constructor(database) {
+    this.database = database;
+  }
+  rank(question) {
+    const objects = this.database.all();
+    const normalizedQuestion = question.toLowerCase();
+    const ranked = objects.map(
+      (object) => {
+        let score = 0;
+        const reasons = [];
+        if (normalizedQuestion.includes(
+          object.id.toLowerCase()
+        )) {
+          score += 100;
+          reasons.push(
+            "ID match"
+          );
+        }
+        const normalizedTitle = object.title.toLowerCase();
+        if (normalizedQuestion.includes(
+          normalizedTitle
+        )) {
+          score += 80;
+          reasons.push(
+            "title match"
+          );
+        }
+        const words = normalizedTitle.split(/\s+/).filter(
+          (word) => word.length > 2
+        );
+        const matchedWords = words.filter(
+          (word) => normalizedQuestion.includes(
+            word
+          )
+        );
+        if (matchedWords.length > 0) {
+          score += matchedWords.length * 20;
+          reasons.push(
+            `matched words: ${matchedWords.join(", ")}`
+          );
+        }
+        return {
+          objectId: object.id,
+          objectTitle: object.title,
+          objectType: object.type,
+          score,
+          reason: reasons.join("; ")
+        };
+      }
+    );
+    return ranked.filter(
+      (object) => object.score > 0
+    ).sort(
+      (a, b) => b.score - a.score
+    ).slice(
+      0,
+      5
+    );
+  }
+};
+
 // src/core/EngineeringCore.ts
 var EngineeringCore = class {
   constructor(app, logger, settings) {
@@ -1189,6 +1240,9 @@ var EngineeringCore = class {
       )
     );
     this.contextResolver = new EngineeringContextResolver(
+      new ContextRankingService(
+        this.database
+      ),
       this.database
     );
     this.scanner = new VaultScanner(
@@ -1230,7 +1284,8 @@ var EngineeringCore = class {
       this.aiService,
       new EngineeringContextService(snapshot),
       new EngineeringContextExporter(),
-      new EngineeringRelatedContextService(snapshot)
+      new EngineeringRelatedContextService(snapshot),
+      this.contextResolver
     );
   }
   shutdown() {

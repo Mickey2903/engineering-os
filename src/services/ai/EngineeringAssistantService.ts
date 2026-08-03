@@ -3,17 +3,18 @@ import type { AIResponse } from "../../models/AIResponse";
 import type { EngineeringContextService } from "../knowledge/EngineeringContextService";
 import type { EngineeringContextExporter } from "../knowledge/EngineeringContextExporter";
 import type { EngineeringRelatedContextService } from "../knowledge/EngineeringRelatedContextService";
-
+import type { EngineeringContextResolver } from "./EngineeringContextResolver";
 
 export class EngineeringAssistantService {
 
 
-  public constructor(
-    private readonly aiService: AIService,
-    private readonly contextService: EngineeringContextService,
-    private readonly exporter: EngineeringContextExporter,
-    private readonly relatedContextService: EngineeringRelatedContextService,
-  ) {}
+public constructor(
+  private readonly aiService: AIService,
+  private readonly contextService: EngineeringContextService,
+  private readonly exporter: EngineeringContextExporter,
+  private readonly relatedContextService: EngineeringRelatedContextService,
+  private readonly contextResolver: EngineeringContextResolver,
+) {}
 
 
   public async getAvailableModels(): Promise<string[]> {
@@ -25,28 +26,41 @@ export class EngineeringAssistantService {
 
 }
 
-  public async ask(
-    question: string,
-    objectId?: string,
-    model?: string,
-  ): Promise<AIResponse> {
+public async ask(
+  question: string,
+  objectId?: string,
+  model?: string,
+): Promise<AIResponse> {
 
 
-    let engineeringContext =
-      "No engineering object context available.";
+  let engineeringContext =
+    "No engineering object context available.";
 
 
-    if (objectId) {
+  const resolved =
+    this.contextResolver.resolve(
+      question,
+      objectId,
+    );
+
+
+  if (resolved.objects.length > 0) {
+
+    const primaryObject =
+      resolved.objects[0];
+
+
+    if (primaryObject) {
 
       const context =
         this.contextService.generateContext(
-          objectId,
+          primaryObject.objectId,
         );
 
 
       const related =
         this.relatedContextService.findRelated(
-          objectId,
+          primaryObject.objectId,
         );
 
 
@@ -72,9 +86,11 @@ export class EngineeringAssistantService {
 
     }
 
+  }
 
-    const prompt =
-      `
+
+  const prompt =
+    `
 Engineering context:
 ${engineeringContext}
 
@@ -83,16 +99,16 @@ ${question}
 `;
 
 
-    return this.aiService.generate(
-      {
-        prompt,
+  return this.aiService.generate(
+    {
+      prompt,
 
-        ...(model
-          ? { model }
-          : {}),
-      },
-    );
-
-  }
-
+      ...(model
+        ? { model }
+        : {}),
+    },
+  );
 }
+}
+
+    

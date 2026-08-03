@@ -20,6 +20,8 @@ import { EngineeringContextService } from "../services/knowledge/EngineeringCont
 import { EngineeringContextExporter } from "../services/knowledge/EngineeringContextExporter";
 import { EngineeringRelatedContextService } 
 from "../services/knowledge/EngineeringRelatedContextService";
+import { ContextRankingService } from "../services/ai/memory/ContextRankingService";
+
 
 export class EngineeringCore {
 
@@ -59,9 +61,12 @@ export class EngineeringCore {
 
     this.contextResolver =
       new EngineeringContextResolver(
-        this.database,
-      );
+  new ContextRankingService(
+    this.database,
+  ),
 
+  this.database,
+);
 
     this.scanner =
       new VaultScanner(
@@ -125,13 +130,13 @@ export class EngineeringCore {
       graphService.createSnapshot();
 
 
-    return new EngineeringAssistantService(
+return new EngineeringAssistantService(
   this.aiService,
   new EngineeringContextService(snapshot),
   new EngineeringContextExporter(),
   new EngineeringRelatedContextService(snapshot),
+  this.contextResolver,
 );
-
   }
 
 

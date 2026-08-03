@@ -1,5 +1,5 @@
 import type { EngineeringDatabase } from "../../database/EngineeringDatabase";
-
+import { ContextRankingService } from "./memory/ContextRankingService";
 
 export interface ResolvedEngineeringObject {
 
@@ -27,161 +27,125 @@ export interface ResolvedEngineeringContext {
 
 export class EngineeringContextResolver {
 
-  public constructor(
-    private readonly database: EngineeringDatabase,
-  ) {}
+public constructor(
+  private readonly rankingService: ContextRankingService,
+  private readonly database: EngineeringDatabase,
+) {}
+
+ public resolve(
+  question: string,
+  activeObjectId?: string,
+): ResolvedEngineeringContext {
 
 
-  public resolve(
-    question: string,
-    activeObjectId?: string,
-  ): ResolvedEngineeringContext {
-
-    const objects =
-      this.database.all();
+  const ranked =
+    this.rankingService.rank(
+      question,
+    );
 
 
-    const normalizedQuestion =
-      question.toLowerCase();
-
-
-const matches =
-  objects.filter(
-    (object) => {
-
-      const idMatch =
-        normalizedQuestion.includes(
-          object.id.toLowerCase(),
-        );
-
-
-      if (idMatch) {
-        return true;
-      }
-
-
-      const normalizedTitle =
-        object.title.toLowerCase();
-
-
-      if (
-        normalizedQuestion.includes(
-          normalizedTitle,
-        )
-      ) {
-        return true;
-      }
-
-
-      const titleWords =
-        normalizedTitle
-          .split(/\s+/)
-          .filter(
-            (word) =>
-              word.length > 2,
-          );
-
-
-      const matchedWords =
-        titleWords.filter(
-          (word) =>
-            normalizedQuestion.includes(
-              word,
-            ),
-        );
-
-
-      return matchedWords.length >= 2;
-
-    },
-  );
-
-
-console.log(
-  "Context matches:",
-  matches.map(
-    (object) => ({
-      id: object.id,
-      title: object.title,
-    }),
-  ),
-);
-
-   if (matches.length > 0) {
-
-      return {
-  objects:
-    matches.map(
+  console.log(
+    "Context matches:",
+    ranked.map(
       (object) => ({
-        objectId:
-          object.id,
-
-        objectTitle:
-          object.title,
-
-        objectType:
-          object.type,
-
-        confidence:
-          "medium",
+        id: object.objectId,
+        title: object.objectTitle,
+        score: object.score,
+        reason: object.reason,
       }),
     ),
+  );
 
-  confidence:
-    "medium",
-};
+if (ranked.length > 0) {
 
-    }
+  const topMatch =
+    ranked[0];
 
 
-    if (activeObjectId) {
+  return {
 
-      const activeObject =
-        objects.find(
+    objects:
+      ranked.map(
+        (object) => ({
+          objectId:
+            object.objectId,
+
+          objectTitle:
+            object.objectTitle,
+
+          objectType:
+            object.objectType,
+
+          confidence:
+            object.score >= 80
+              ? "high"
+              : "medium",
+        }),
+      ),
+
+
+    confidence:
+      topMatch !== undefined &&
+      topMatch.score >= 80
+        ? "high"
+        : "medium",
+
+  };
+
+}
+
+
+
+  if (activeObjectId) {
+
+    const activeObject =
+      this.database.all()
+        .find(
           (object) =>
             object.id === activeObjectId,
         );
 
 
-      if (activeObject !== undefined) {
+    if (activeObject !== undefined) {
 
-        return {
+      return {
 
-          objects: [
-            {
-              objectId:
-                activeObject.id,
+        objects: [
+          {
+            objectId:
+              activeObject.id,
 
-              objectTitle:
-                activeObject.title,
+            objectTitle:
+              activeObject.title,
 
-              objectType:
-                activeObject.type,
+            objectType:
+              activeObject.type,
 
-              confidence:
-                "high",
-            },
-          ],
+            confidence:
+              "high",
+          },
+        ],
 
-          confidence:
-            "high",
 
-        };
+        confidence:
+          "high",
 
-      }
+      };
 
     }
 
-
-    return {
-
-      objects: [],
-
-      confidence:
-        "none",
-
-    };
-
   }
+
+
+  return {
+
+    objects: [],
+
+    confidence:
+      "none",
+
+  };
+
+}
 
 }
