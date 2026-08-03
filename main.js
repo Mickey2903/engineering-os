@@ -865,15 +865,15 @@ var EngineeringAssistantService = class {
       objectId
     );
     if (resolved.objects.length > 0) {
-      const primaryObject = resolved.objects[0];
-      if (primaryObject) {
+      const combinedContexts = [];
+      for (const object of resolved.objects) {
         const context = this.contextService.generateContext(
-          primaryObject.objectId
+          object.objectId
         );
         const related = this.relatedContextService.findRelated(
-          primaryObject.objectId
+          object.objectId
         );
-        const exported = this.exporter.export(
+        combinedContexts.push(
           {
             ...context,
             related: [
@@ -882,12 +882,12 @@ var EngineeringAssistantService = class {
             ]
           }
         );
-        engineeringContext = JSON.stringify(
-          exported,
-          null,
-          2
-        );
       }
+      engineeringContext = JSON.stringify(
+        combinedContexts,
+        null,
+        2
+      );
     }
     const prompt = `
 Engineering context:

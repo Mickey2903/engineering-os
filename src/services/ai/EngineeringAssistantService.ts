@@ -44,49 +44,53 @@ public async ask(
     );
 
 
-  if (resolved.objects.length > 0) {
-
-    const primaryObject =
-      resolved.objects[0];
+if (resolved.objects.length > 0) {
 
 
-    if (primaryObject) {
-
-      const context =
-        this.contextService.generateContext(
-          primaryObject.objectId,
-        );
+  const combinedContexts = [];
 
 
-      const related =
-        this.relatedContextService.findRelated(
-          primaryObject.objectId,
-        );
+  for (const object of resolved.objects) {
 
 
-      const exported =
-        this.exporter.export(
-          {
-            ...context,
-
-            related: [
-              ...context.related,
-              ...related,
-            ],
-          },
-        );
+    const context =
+      this.contextService.generateContext(
+        object.objectId,
+      );
 
 
-      engineeringContext =
-        JSON.stringify(
-          exported,
-          null,
-          2,
-        );
+    const related =
+      this.relatedContextService.findRelated(
+        object.objectId,
+      );
 
-    }
+
+    combinedContexts.push(
+      {
+        ...context,
+
+        related: [
+          ...context.related,
+          ...related,
+        ],
+
+      },
+    );
 
   }
+
+
+  engineeringContext =
+    JSON.stringify(
+      combinedContexts,
+      null,
+      2,
+    );
+
+}
+
+
+
 
 
   const prompt =
