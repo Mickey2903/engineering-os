@@ -9,17 +9,18 @@ export interface AIResponse {
 
     objects: {
 
-      id: string;
+  id: string;
 
-      title: string;
+  title: string;
 
-      type: string;
+  type: string;
 
-      confidence: 
-        "high" | "medium" | "low";
+  sourcePath: string;
 
-    }[];
+  confidence:
+    "high" | "medium" | "low";
 
+}[];
     confidence:
       "high" | "medium" | "low" | "none";
 

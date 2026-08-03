@@ -134,15 +134,30 @@ private updateAIContext(
 
   for (const object of context.objects) {
 
-    this.contextEl.createDiv({
-      cls:
-        "plc-eng-ai-context-object",
+  const button =
+    this.contextEl.createEl(
+      "button",
+      {
+        cls:
+          "plc-eng-ai-context-object",
 
-      text:
-        `🟢 ${object.id} - ${object.title}`,
-    });
+        text:
+          `🟢 ${object.id} - ${object.title}`,
+      },
+    );
 
-  }
+
+  button.onclick =
+    async () => {
+
+      await this.appInstance.workspace.openLinkText(
+        object.sourcePath,
+        "",
+      );
+
+    };
+
+}
 
 
   this.contextEl.createDiv({

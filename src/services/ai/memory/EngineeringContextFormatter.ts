@@ -13,6 +13,9 @@ export interface FormattableEngineeringContext {
   };
 
 
+  documentContent?: string;
+
+
   related: {
 
     id: string;
@@ -67,11 +70,22 @@ export class EngineeringContextFormatter {
 
       if (context.root.status) {
 
-        lines.push(
-          `Status: ${context.root.status}`,
-        );
+  lines.push(
+    `Status: ${context.root.status}`,
+  );
 
-      }
+}
+
+
+if (context.documentContent) {
+
+  lines.push(
+    "",
+    "Document content:",
+    context.documentContent,
+  );
+
+}
 
 
       if (

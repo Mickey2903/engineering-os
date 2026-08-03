@@ -2,11 +2,17 @@ import type { EngineeringKnowledgeGraphSnapshot } from "../../models/Engineering
 import type { EngineeringContext } from "../../models/EngineeringContext";
 
 
+import type { EngineeringDatabase } from "../../database/EngineeringDatabase";
+
+
 export class EngineeringContextService {
 
   public constructor(
     private readonly snapshot:
       EngineeringKnowledgeGraphSnapshot,
+
+    private readonly database:
+      EngineeringDatabase,
   ) {}
 
 
@@ -14,10 +20,12 @@ export class EngineeringContextService {
     id: string,
   ): EngineeringContext {
 
-    const root =
-      this.snapshot.objects.find(
-        (object) => object.id === id,
-      );
+   const root =
+  this.database.all()
+    .find(
+      (object) =>
+        object.id === id,
+    );
 
 
     const relatedIds =
@@ -39,7 +47,7 @@ export class EngineeringContextService {
 
 
     const related =
-      this.snapshot.objects.filter(
+  this.database.all().filter(
         (object) =>
           relatedIds.has(object.id),
       );

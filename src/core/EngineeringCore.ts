@@ -22,7 +22,8 @@ import { EngineeringRelatedContextService }
 from "../services/knowledge/EngineeringRelatedContextService";
 import { ContextRankingService } from "../services/ai/memory/ContextRankingService";
 import { EngineeringContextFormatter } from "../services/ai/memory/EngineeringContextFormatter";
-
+import { EngineeringDocumentContentService }
+from "../services/knowledge/EngineeringDocumentContentService";
 
 export class EngineeringCore {
 
@@ -127,17 +128,30 @@ export class EngineeringCore {
       );
 
 
-    const snapshot =
-      graphService.createSnapshot();
-
+const snapshot =
+  graphService.createSnapshot();
 
 return new EngineeringAssistantService(
   this.aiService,
-  new EngineeringContextService(snapshot),
+
+  new EngineeringContextService(
+    snapshot,
+    this.database,
+  ),
+
   new EngineeringContextExporter(),
-  new EngineeringRelatedContextService(snapshot),
+
+  new EngineeringRelatedContextService(
+    snapshot,
+  ),
+
   this.contextResolver,
+
   new EngineeringContextFormatter(),
+
+  new EngineeringDocumentContentService(
+    this.app.vault,
+  ),
 );
   }
 

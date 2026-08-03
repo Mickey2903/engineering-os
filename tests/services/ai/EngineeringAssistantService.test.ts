@@ -6,7 +6,8 @@ import type { EngineeringContextService } from "../../../src/services/knowledge/
 import type { EngineeringContextExporter } from "../../../src/services/knowledge/EngineeringContextExporter";
 import type { EngineeringRelatedContextService } from "../../../src/services/knowledge/EngineeringRelatedContextService";
 import { EngineeringAssistantService } from "../../../src/services/ai/EngineeringAssistantService";
-
+import type { EngineeringDocumentContentService }
+from "../../../src/services/knowledge/EngineeringDocumentContentService";
 import type { EngineeringContextResolver } from "../../../src/services/ai/EngineeringContextResolver";
 
 import { EngineeringContextFormatter } from "../../../src/services/ai/memory/EngineeringContextFormatter";
@@ -101,7 +102,15 @@ const aiService =
 
     } as unknown as EngineeringContextExporter;
 
+const contentService =
+  {
+    readContent: async () =>
+      "Test engineering content",
 
+  } as unknown as EngineeringDocumentContentService;
+  
+  
+  
 const relatedContextService =
   {
     findRelated: () => [],
@@ -109,14 +118,14 @@ const relatedContextService =
   
 const assistant =
   new EngineeringAssistantService(
-    aiService,
-    contextService,
-    exporter,
-    relatedContextService,
-    contextResolver,
-    new EngineeringContextFormatter(),
-  );
-
+  aiService,
+  contextService,
+  exporter,
+  relatedContextService,
+  contextResolver,
+  new EngineeringContextFormatter(),
+  contentService,
+);
 
    const response =
   await assistant.ask(

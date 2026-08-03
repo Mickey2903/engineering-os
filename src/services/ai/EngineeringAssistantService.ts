@@ -5,9 +5,10 @@ import type { EngineeringContextExporter } from "../knowledge/EngineeringContext
 import type { EngineeringRelatedContextService } from "../knowledge/EngineeringRelatedContextService";
 import type { EngineeringContextResolver } from "./EngineeringContextResolver";
 import type { EngineeringContextFormatter } from "./memory/EngineeringContextFormatter";
+import type { EngineeringDocumentContentService } 
+from "../knowledge/EngineeringDocumentContentService";
 
 export class EngineeringAssistantService {
-
 
 public constructor(
   private readonly aiService: AIService,
@@ -15,7 +16,8 @@ public constructor(
   private readonly exporter: EngineeringContextExporter,
   private readonly relatedContextService: EngineeringRelatedContextService,
   private readonly contextResolver: EngineeringContextResolver,
-private readonly contextFormatter: EngineeringContextFormatter,
+  private readonly contextFormatter: EngineeringContextFormatter,
+  private readonly contentService: EngineeringDocumentContentService,
 ) {}
 
 
@@ -55,43 +57,56 @@ if (resolved.objects.length > 0) {
   const combinedContexts = [];
 
 
-  for (const object of resolved.objects) {
+for (const object of resolved.objects) {
+
+  const context =
+    this.contextService.generateContext(
+      object.objectId,
+    );
 
 
-    const context =
-      this.contextService.generateContext(
-        object.objectId,
-      );
+  if (!context.root) {
+    continue;
+  }
 
 
-    const related =
-      this.relatedContextService.findRelated(
-        object.objectId,
-      );
+  const related =
+    this.relatedContextService.findRelated(
+      object.objectId,
+    );
 
-if (context.root) {
+
+  const documentContent =
+    await this.contentService.readContent(
+      context.root.sourcePath,
+    );
+
 
   combinedContexts.push(
-    {
-      root:
-        context.root,
+  {
+    root:
+      context.root,
 
-      related: [
-        ...context.related,
-        ...related,
-      ],
-    },
-  );
+    documentContent,
+
+    related: [
+      ...context.related,
+      ...related,
+    ],
+  },
+);
 
 }
-
-  }
 
 
   engineeringContext =
   this.contextFormatter.format(
     combinedContexts,
   );
+  console.log(
+  "FINAL ENGINEERING CONTEXT:",
+  engineeringContext,
+);
 
 }
 
@@ -140,6 +155,9 @@ return {
 
           confidence:
             object.confidence,
+            
+           sourcePath:
+  object.sourcePath, 
         }),
       ),
 

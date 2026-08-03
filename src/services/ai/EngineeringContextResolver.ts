@@ -9,6 +9,8 @@ export interface ResolvedEngineeringObject {
 
   objectType: string;
 
+  sourcePath: string;
+
   confidence:
     "high" | "medium" | "low";
 
@@ -46,6 +48,8 @@ public constructor(
 
   console.log(
     "Context matches:",
+    
+    
     ranked.map(
       (object) => ({
         id: object.objectId,
@@ -55,6 +59,17 @@ public constructor(
       }),
     ),
   );
+  
+  console.log(
+  "All objects:",
+  this.database.all().map(
+    object => ({
+      id: object.id,
+      title: object.title,
+      path: object.sourcePath,
+    }),
+  ),
+);
 
 if (ranked.length > 0) {
 
@@ -65,24 +80,26 @@ if (ranked.length > 0) {
   return {
 
     objects:
-      ranked.map(
-        (object) => ({
-          objectId:
-            object.objectId,
+  ranked.map(
+    (object) => ({
+      objectId:
+        object.objectId,
 
-          objectTitle:
-            object.objectTitle,
+      objectTitle:
+        object.objectTitle,
 
-          objectType:
-            object.objectType,
+      objectType:
+        object.objectType,
 
-          confidence:
-            object.score >= 80
-              ? "high"
-              : "medium",
-        }),
-      ),
+      sourcePath:
+        object.sourcePath,
 
+      confidence:
+        object.score >= 80
+          ? "high"
+          : "medium",
+    }),
+  ),
 
     confidence:
       topMatch !== undefined &&
@@ -111,20 +128,23 @@ if (ranked.length > 0) {
       return {
 
         objects: [
-          {
-            objectId:
-              activeObject.id,
+  {
+    objectId:
+      activeObject.id,
 
-            objectTitle:
-              activeObject.title,
+    objectTitle:
+      activeObject.title,
 
-            objectType:
-              activeObject.type,
+    objectType:
+      activeObject.type,
 
-            confidence:
-              "high",
-          },
-        ],
+    sourcePath:
+      activeObject.sourcePath,
+
+    confidence:
+      "high",
+  },
+],
 
 
         confidence:

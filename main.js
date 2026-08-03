@@ -23,7 +23,7 @@ __export(main_exports, {
   default: () => PlcEngineeringToolsPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/commands/GenerateTraceabilityReportCommand.ts
 var GenerateTraceabilityReportCommand = class {
@@ -847,13 +847,14 @@ var AIService = class {
 
 // src/services/ai/EngineeringAssistantService.ts
 var EngineeringAssistantService = class {
-  constructor(aiService, contextService, exporter, relatedContextService, contextResolver, contextFormatter) {
+  constructor(aiService, contextService, exporter, relatedContextService, contextResolver, contextFormatter, contentService) {
     this.aiService = aiService;
     this.contextService = contextService;
     this.exporter = exporter;
     this.relatedContextService = relatedContextService;
     this.contextResolver = contextResolver;
     this.contextFormatter = contextFormatter;
+    this.contentService = contentService;
   }
   async getAvailableModels() {
     const models = await this.aiService.getAvailableModels();
@@ -872,23 +873,32 @@ var EngineeringAssistantService = class {
         const context = this.contextService.generateContext(
           object.objectId
         );
+        if (!context.root) {
+          continue;
+        }
         const related = this.relatedContextService.findRelated(
           object.objectId
         );
-        if (context.root) {
-          combinedContexts.push(
-            {
-              root: context.root,
-              related: [
-                ...context.related,
-                ...related
-              ]
-            }
-          );
-        }
+        const documentContent = await this.contentService.readContent(
+          context.root.sourcePath
+        );
+        combinedContexts.push(
+          {
+            root: context.root,
+            documentContent,
+            related: [
+              ...context.related,
+              ...related
+            ]
+          }
+        );
       }
       engineeringContext = this.contextFormatter.format(
         combinedContexts
+      );
+      console.log(
+        "FINAL ENGINEERING CONTEXT:",
+        engineeringContext
       );
     }
     const prompt = `
@@ -912,7 +922,8 @@ ${question}
             id: object.objectId,
             title: object.objectTitle,
             type: object.objectType,
-            confidence: object.confidence
+            confidence: object.confidence,
+            sourcePath: object.sourcePath
           })
         ),
         confidence: resolvedContext.confidence
@@ -942,6 +953,16 @@ var EngineeringContextResolver = class {
         })
       )
     );
+    console.log(
+      "All objects:",
+      this.database.all().map(
+        (object) => ({
+          id: object.id,
+          title: object.title,
+          path: object.sourcePath
+        })
+      )
+    );
     if (ranked.length > 0) {
       const topMatch = ranked[0];
       return {
@@ -950,6 +971,7 @@ var EngineeringContextResolver = class {
             objectId: object.objectId,
             objectTitle: object.objectTitle,
             objectType: object.objectType,
+            sourcePath: object.sourcePath,
             confidence: object.score >= 80 ? "high" : "medium"
           })
         ),
@@ -967,6 +989,7 @@ var EngineeringContextResolver = class {
               objectId: activeObject.id,
               objectTitle: activeObject.title,
               objectType: activeObject.type,
+              sourcePath: activeObject.sourcePath,
               confidence: "high"
             }
           ],
@@ -1100,11 +1123,12 @@ var EngineeringKnowledgeGraphService = class {
 
 // src/services/knowledge/EngineeringContextService.ts
 var EngineeringContextService = class {
-  constructor(snapshot) {
+  constructor(snapshot, database) {
     this.snapshot = snapshot;
+    this.database = database;
   }
   generateContext(id) {
-    const root = this.snapshot.objects.find(
+    const root = this.database.all().find(
       (object) => object.id === id
     );
     const relatedIds = /* @__PURE__ */ new Set();
@@ -1118,7 +1142,7 @@ var EngineeringContextService = class {
         relationship.sourceId
       );
     }
-    const related = this.snapshot.objects.filter(
+    const related = this.database.all().filter(
       (object) => relatedIds.has(object.id)
     );
     return {
@@ -1242,6 +1266,7 @@ var ContextRankingService = class {
           objectId: object.id,
           objectTitle: object.title,
           objectType: object.type,
+          sourcePath: object.sourcePath,
           score,
           reason: reasons.join("; ")
         };
@@ -1280,6 +1305,13 @@ var EngineeringContextFormatter = class {
           `Status: ${context.root.status}`
         );
       }
+      if (context.documentContent) {
+        lines.push(
+          "",
+          "Document content:",
+          context.documentContent
+        );
+      }
       if (context.related.length > 0) {
         lines.push(
           "Related objects:"
@@ -1292,6 +1324,28 @@ var EngineeringContextFormatter = class {
       }
     }
     return lines.join("\n");
+  }
+};
+
+// src/services/knowledge/EngineeringDocumentContentService.ts
+var import_obsidian = require("obsidian");
+var EngineeringDocumentContentService = class {
+  constructor(vault) {
+    this.vault = vault;
+  }
+  async readContent(sourcePath) {
+    const file = this.vault.getAbstractFileByPath(
+      sourcePath
+    );
+    if (!file) {
+      return "";
+    }
+    if (file instanceof import_obsidian.TFile) {
+      return this.vault.read(
+        file
+      );
+    }
+    return "";
   }
 };
 
@@ -1349,11 +1403,19 @@ var EngineeringCore = class {
     const snapshot = graphService.createSnapshot();
     return new EngineeringAssistantService(
       this.aiService,
-      new EngineeringContextService(snapshot),
+      new EngineeringContextService(
+        snapshot,
+        this.database
+      ),
       new EngineeringContextExporter(),
-      new EngineeringRelatedContextService(snapshot),
+      new EngineeringRelatedContextService(
+        snapshot
+      ),
       this.contextResolver,
-      new EngineeringContextFormatter()
+      new EngineeringContextFormatter(),
+      new EngineeringDocumentContentService(
+        this.app.vault
+      )
     );
   }
   shutdown() {
@@ -1687,8 +1749,8 @@ var AskEngineeringAICommand = class {
 };
 
 // src/ui/TextInputModal.ts
-var import_obsidian = require("obsidian");
-var TextInputModal = class extends import_obsidian.Modal {
+var import_obsidian2 = require("obsidian");
+var TextInputModal = class extends import_obsidian2.Modal {
   constructor(app, title) {
     super(app);
     this.title = title;
@@ -1712,7 +1774,7 @@ var TextInputModal = class extends import_obsidian.Modal {
         text: this.title
       }
     );
-    new import_obsidian.Setting(contentEl).setName(
+    new import_obsidian2.Setting(contentEl).setName(
       "Value"
     ).addText(
       (text2) => {
@@ -1724,7 +1786,7 @@ var TextInputModal = class extends import_obsidian.Modal {
         text2.inputEl.focus();
       }
     );
-    new import_obsidian.Setting(contentEl).addButton(
+    new import_obsidian2.Setting(contentEl).addButton(
       (button) => {
         button.setButtonText(
           "OK"
@@ -1879,7 +1941,7 @@ var AIStatusService = class {
 };
 
 // src/views/EngineeringAIChatView.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 
 // src/services/ai/ConversationService.ts
 var ConversationService = class {
@@ -1908,7 +1970,7 @@ var ConversationService = class {
 
 // src/views/EngineeringAIChatView.ts
 var ENGINEERING_AI_VIEW_TYPE = "engineering-ai-chat";
-var EngineeringAIChatView = class extends import_obsidian2.ItemView {
+var EngineeringAIChatView = class extends import_obsidian3.ItemView {
   conversation = new ConversationService();
   conversationId;
   selectedModel;
@@ -1951,10 +2013,19 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       return;
     }
     for (const object of context.objects) {
-      this.contextEl.createDiv({
-        cls: "plc-eng-ai-context-object",
-        text: `\u{1F7E2} ${object.id} - ${object.title}`
-      });
+      const button = this.contextEl.createEl(
+        "button",
+        {
+          cls: "plc-eng-ai-context-object",
+          text: `\u{1F7E2} ${object.id} - ${object.title}`
+        }
+      );
+      button.onclick = async () => {
+        await this.appInstance.workspace.openLinkText(
+          object.sourcePath,
+          ""
+        );
+      };
     }
     this.contextEl.createDiv({
       cls: "plc-eng-ai-context-confidence",
@@ -2393,7 +2464,7 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
       };
     }
     const contentEl = message.createDiv();
-    await import_obsidian2.MarkdownRenderer.renderMarkdown(
+    await import_obsidian3.MarkdownRenderer.renderMarkdown(
       content,
       contentEl,
       "",
@@ -2462,8 +2533,8 @@ var DEFAULT_ENGINEERING_OS_SETTINGS = {
 };
 
 // src/settings/EngineeringOSSettingTab.ts
-var import_obsidian3 = require("obsidian");
-var EngineeringOSSettingTab = class extends import_obsidian3.PluginSettingTab {
+var import_obsidian4 = require("obsidian");
+var EngineeringOSSettingTab = class extends import_obsidian4.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -2478,7 +2549,7 @@ var EngineeringOSSettingTab = class extends import_obsidian3.PluginSettingTab {
         text: "Engineering OS Settings"
       }
     );
-    new import_obsidian3.Setting(containerEl).setName("AI Provider").addDropdown(
+    new import_obsidian4.Setting(containerEl).setName("AI Provider").addDropdown(
       (dropdown) => dropdown.addOption(
         "mock",
         "Mock"
@@ -2500,7 +2571,7 @@ var EngineeringOSSettingTab = class extends import_obsidian3.PluginSettingTab {
         }
       )
     );
-    new import_obsidian3.Setting(containerEl).setName("AI Model").addText(
+    new import_obsidian4.Setting(containerEl).setName("AI Model").addText(
       (text2) => text2.setValue(
         this.plugin.settings.aiModel ?? ""
       ).onChange(
@@ -2513,7 +2584,7 @@ var EngineeringOSSettingTab = class extends import_obsidian3.PluginSettingTab {
         }
       )
     );
-    new import_obsidian3.Setting(containerEl).setName("AI Endpoint").addText(
+    new import_obsidian4.Setting(containerEl).setName("AI Endpoint").addText(
       (text2) => text2.setValue(
         this.plugin.settings.aiEndpoint ?? ""
       ).onChange(
@@ -2526,7 +2597,7 @@ var EngineeringOSSettingTab = class extends import_obsidian3.PluginSettingTab {
         }
       )
     );
-    new import_obsidian3.Setting(containerEl).setName("AI API Key").addText(
+    new import_obsidian4.Setting(containerEl).setName("AI API Key").addText(
       (text2) => text2.setValue(
         this.plugin.settings.aiApiKey ?? ""
       ).onChange(
@@ -2543,7 +2614,7 @@ var EngineeringOSSettingTab = class extends import_obsidian3.PluginSettingTab {
 };
 
 // main.ts
-var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
+var PlcEngineeringToolsPlugin = class extends import_obsidian5.Plugin {
   core;
   settings = DEFAULT_ENGINEERING_OS_SETTINGS;
   async onload() {
@@ -2570,7 +2641,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
     );
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
-        if (file instanceof import_obsidian4.TFile) {
+        if (file instanceof import_obsidian5.TFile) {
           this.core?.removeFile(file.path);
         }
       })
@@ -2580,7 +2651,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
       name: "Show engineering index status",
       callback: () => {
         const count = this.core?.database.count() ?? 0;
-        new import_obsidian4.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
+        new import_obsidian5.Notice(`Engineering index contains ${String(count)} Markdown documents.`);
       }
     });
     this.registerView(
@@ -2658,7 +2729,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
       name: "Ask Engineering AI",
       callback: async () => {
         if (!this.core) {
-          new import_obsidian4.Notice("Engineering core is not available.");
+          new import_obsidian5.Notice("Engineering core is not available.");
           return;
         }
         const assistant = this.core.createEngineeringAssistant();
@@ -2683,7 +2754,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
           objectId,
           question
         );
-        new import_obsidian4.Notice(
+        new import_obsidian5.Notice(
           answer
         );
       }
@@ -2691,7 +2762,7 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
   }
   async generateEngineeringReports(logger) {
     if (!this.core) {
-      new import_obsidian4.Notice("Engineering core is not available.");
+      new import_obsidian5.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -2714,15 +2785,15 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
       const writer = new ObsidianReportWriter(this.app.vault);
       const command = new GenerateEngineeringReportsCommand(reportService, writer);
       await command.execute();
-      new import_obsidian4.Notice("Engineering reports generated.");
+      new import_obsidian5.Notice("Engineering reports generated.");
     } catch (error) {
       logger.error("Failed to generate engineering reports.", error);
-      new import_obsidian4.Notice("Failed to generate engineering reports.");
+      new import_obsidian5.Notice("Failed to generate engineering reports.");
     }
   }
   async runHealthCheck(logger) {
     if (!this.core) {
-      new import_obsidian4.Notice("Engineering core is not available.");
+      new import_obsidian5.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -2736,15 +2807,15 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
         writer
       );
       await command.execute();
-      new import_obsidian4.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
+      new import_obsidian5.Notice("Engineering health report generated at Engineering/Reports/Health Report.md.");
     } catch (error) {
       logger.error("Failed to generate engineering health report.", error);
-      new import_obsidian4.Notice("Failed to generate the engineering health report.");
+      new import_obsidian5.Notice("Failed to generate the engineering health report.");
     }
   }
   async generateTraceabilityReport(logger) {
     if (!this.core) {
-      new import_obsidian4.Notice("Engineering core is not available.");
+      new import_obsidian5.Notice("Engineering core is not available.");
       return;
     }
     try {
@@ -2753,10 +2824,10 @@ var PlcEngineeringToolsPlugin = class extends import_obsidian4.Plugin {
       const writer = new ObsidianReportWriter(this.app.vault);
       const command = new GenerateTraceabilityReportCommand(services, renderer, writer);
       await command.execute();
-      new import_obsidian4.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
+      new import_obsidian5.Notice("Traceability report generated at Engineering/Reports/Traceability Report.md.");
     } catch (error) {
       logger.error("Failed to generate traceability report.", error);
-      new import_obsidian4.Notice("Failed to generate the traceability report.");
+      new import_obsidian5.Notice("Failed to generate the traceability report.");
     }
   }
   onunload() {

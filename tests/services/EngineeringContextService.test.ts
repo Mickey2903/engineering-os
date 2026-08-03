@@ -88,8 +88,9 @@ describe("EngineeringContextService", () => {
 
     const contextService =
       new EngineeringContextService(
-        snapshot,
-      );
+  snapshot,
+  database,
+);
 
 
     const context =
@@ -152,8 +153,9 @@ describe("EngineeringContextService", () => {
 
     const contextService =
       new EngineeringContextService(
-        snapshot,
-      );
+  snapshot,
+  database,
+);
 
 
     const context =

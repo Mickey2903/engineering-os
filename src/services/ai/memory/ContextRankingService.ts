@@ -8,6 +8,7 @@ export interface RankedEngineeringObject {
   objectTitle: string;
 
   objectType: string;
+  sourcePath: string;
 
   score: number;
 
@@ -164,6 +165,8 @@ if (
 
             objectType:
               object.type,
+
+sourcePath: object.sourcePath,
 
             score,
 
