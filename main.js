@@ -1186,12 +1186,26 @@ var ContextRankingService = class {
           );
         }
         const normalizedTitle = object.title.toLowerCase();
+        const tags = object.tags?.map(
+          (tag) => tag.toLowerCase()
+        ) ?? [];
         if (normalizedQuestion.includes(
           normalizedTitle
         )) {
           score += 80;
           reasons.push(
             "title match"
+          );
+        }
+        const matchedTags = tags.filter(
+          (tag) => normalizedQuestion.includes(
+            tag
+          )
+        );
+        if (matchedTags.length > 0) {
+          score += matchedTags.length * 25;
+          reasons.push(
+            `matched tags: ${matchedTags.join(", ")}`
           );
         }
         const words = normalizedTitle.split(/\s+/).filter(

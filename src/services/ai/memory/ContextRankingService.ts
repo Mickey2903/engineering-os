@@ -71,7 +71,13 @@ export class ContextRankingService {
           const normalizedTitle =
             object.title.toLowerCase();
 
-
+const tags =
+  object.tags
+    ?.map(
+      (tag) =>
+        tag.toLowerCase(),
+    )
+    ?? [];
 
           // Exact title match
           if (
@@ -88,7 +94,28 @@ export class ContextRankingService {
 
           }
 
+const matchedTags =
+  tags.filter(
+    (tag) =>
+      normalizedQuestion.includes(
+        tag,
+      ),
+  );
 
+
+if (
+  matchedTags.length > 0
+) {
+
+  score +=
+    matchedTags.length * 25;
+
+
+  reasons.push(
+    `matched tags: ${matchedTags.join(", ")}`,
+  );
+
+}
 
           // Word matching
           const words =
