@@ -4,7 +4,7 @@
   "aiEndpoint": "",
   "engineering-os-ai": {
     "selectedModel": "qwen2.5-coder:14b",
-    "activeConversationId": "e134f9d4-bec9-4fe1-843b-0d6268135780",
+    "activeConversationId": "a85b6fca-2f60-4482-940b-8f6d090dac5d",
     "conversations": [
       {
         "id": "e134f9d4-bec9-4fe1-843b-0d6268135780",

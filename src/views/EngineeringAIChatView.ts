@@ -108,39 +108,50 @@ private updateAIContext(
   }
 
 
+  this.contextEl.empty();
+
+
+  this.contextEl.createDiv({
+    cls:
+      "plc-eng-ai-context-sidebar-title",
+
+    text:
+      "Engineering Context",
+  });
+
+
   if (context.objects.length === 0) {
 
-    this.contextEl.setText(
-      "Engineering Context: ⚪ Geen gebruikte objecten",
-    );
+    this.contextEl.createDiv({
+      text:
+        "⚪ Geen gebruikte objecten",
+    });
 
     return;
 
   }
 
 
-  const lines = [
-    "Engineering Context:",
-  ];
-
-
   for (const object of context.objects) {
 
-    lines.push(
-      `🟢 ${object.id} - ${object.title} (${object.type})`,
-    );
+    this.contextEl.createDiv({
+      cls:
+        "plc-eng-ai-context-object",
+
+      text:
+        `🟢 ${object.id} - ${object.title}`,
+    });
 
   }
 
 
-  lines.push(
-    `Confidence: ${context.confidence}`,
-  );
+  this.contextEl.createDiv({
+    cls:
+      "plc-eng-ai-context-confidence",
 
-
-  this.contextEl.setText(
-    lines.join("\n"),
-  );
+    text:
+      `Confidence: ${context.confidence}`,
+  });
 
 }
 
@@ -464,14 +475,14 @@ else {
 
 }
 
-    this.contextEl =
-this.chatContainer?.createEl(
-    "p",
-    {
-      cls:
-        "plc-eng-ai-context",
-    },
-  );
+this.contextEl =
+aiSettings.createEl(
+  "div",
+  {
+    cls:
+      "plc-eng-ai-context-sidebar",
+  },
+);
 
 
     this.updateContextDisplay({

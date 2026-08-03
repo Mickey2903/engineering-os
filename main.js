@@ -1939,26 +1939,27 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
     if (!context || !this.contextEl) {
       return;
     }
+    this.contextEl.empty();
+    this.contextEl.createDiv({
+      cls: "plc-eng-ai-context-sidebar-title",
+      text: "Engineering Context"
+    });
     if (context.objects.length === 0) {
-      this.contextEl.setText(
-        "Engineering Context: \u26AA Geen gebruikte objecten"
-      );
+      this.contextEl.createDiv({
+        text: "\u26AA Geen gebruikte objecten"
+      });
       return;
     }
-    const lines = [
-      "Engineering Context:"
-    ];
     for (const object of context.objects) {
-      lines.push(
-        `\u{1F7E2} ${object.id} - ${object.title} (${object.type})`
-      );
+      this.contextEl.createDiv({
+        cls: "plc-eng-ai-context-object",
+        text: `\u{1F7E2} ${object.id} - ${object.title}`
+      });
     }
-    lines.push(
-      `Confidence: ${context.confidence}`
-    );
-    this.contextEl.setText(
-      lines.join("\n")
-    );
+    this.contextEl.createDiv({
+      cls: "plc-eng-ai-context-confidence",
+      text: `Confidence: ${context.confidence}`
+    });
   }
   getViewType() {
     return ENGINEERING_AI_VIEW_TYPE;
@@ -2117,10 +2118,10 @@ var EngineeringAIChatView = class extends import_obsidian2.ItemView {
         conversation.id
       );
     }
-    this.contextEl = this.chatContainer?.createEl(
-      "p",
+    this.contextEl = aiSettings.createEl(
+      "div",
       {
-        cls: "plc-eng-ai-context"
+        cls: "plc-eng-ai-context-sidebar"
       }
     );
     this.updateContextDisplay({

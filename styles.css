@@ -114,56 +114,100 @@
 
 
 .plc-eng-ai-history {
-  width: 240px;
-  min-width: 220px;
-  max-width: 280px;
 
-  border-right: 1px solid var(--background-modifier-border);
+  width: 320px;
 
-  padding-right: 8px;
+  min-width: 300px;
 
-  overflow-y: auto;
+  max-width: 380px;
+
+
+  border-right:
+    1px solid var(--background-modifier-border);
+
+
+  padding-right: 10px;
+
 
   display: flex;
+
   flex-direction: column;
+
+
+  min-height: 0;
+
 }
 
 
 .plc-eng-ai-history h3 {
+
   margin-top: 0;
+
 }
 
 
 .plc-eng-ai-new-chat {
+
   width: 100%;
+
   margin-bottom: 10px;
+
 }
 
 
 .plc-eng-ai-conversations {
+
   display: grid;
+
   gap: 6px;
+
+
+  overflow-y: auto;
+
+  flex: 1;
+
+  min-height: 0;
+
 }
 
 
 .plc-eng-ai-conversation-item {
+
   display: flex;
+
   gap: 6px;
+
 }
 
 
 .plc-eng-ai-conversation-item button:first-child {
+
   flex: 1;
+
+  min-width: 0;
+
   text-align: left;
 
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
+
 }
 
 
 .plc-eng-ai-conversation-item button:last-child {
+
+  width: 40px;
+
+  min-width: 40px;
+
+  padding: 0;
+
   flex-shrink: 0;
+
 }
 
 
@@ -392,18 +436,6 @@
   margin-right: 8px;
 }
 
-.plc-eng-ai-status {
-  font-size: 0.85em;
-  color: var(--text-muted);
-  margin: 0;
-  white-space: nowrap;
-}
-.plc-eng-ai-sidebar-settings {
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--background-modifier-border);
-}
-
 
 .plc-eng-ai-sidebar-settings .plc-eng-ai-model {
   display: flex;
@@ -426,4 +458,102 @@
   margin: 0 0 8px 0;
   font-size: 0.85em;
   color: var(--text-muted);
+}
+
+/* ================================
+   AI Sidebar Settings
+   ================================ */
+
+/* ================================
+   AI Sidebar Settings
+   ================================ */
+
+
+.plc-eng-ai-sidebar-settings {
+
+  margin-top: auto;
+
+  padding-top: 12px;
+
+  border-top:
+    1px solid var(--background-modifier-border);
+
+}
+
+
+.plc-eng-ai-sidebar-settings .plc-eng-ai-model {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+
+}
+
+
+.plc-eng-ai-sidebar-settings select {
+
+  width: 100%;
+
+}
+
+
+.plc-eng-ai-sidebar-settings button {
+
+  width: 100%;
+
+}
+
+
+/* ================================
+   AI Context Display
+   ================================ */
+
+.plc-eng-ai-context-sidebar {
+
+  margin-top: 12px;
+
+  padding: 10px;
+
+  border-radius: 8px;
+
+  background:
+    var(--background-secondary);
+
+  color:
+    var(--text-normal);
+
+  font-size: 0.9em;
+
+  white-space: pre-line;
+
+}
+
+
+.plc-eng-ai-context-sidebar-title {
+
+  font-weight: 700;
+
+  margin-bottom: 8px;
+
+}
+
+
+.plc-eng-ai-context-object {
+
+  padding: 4px 0;
+
+}
+
+
+.plc-eng-ai-context-confidence {
+
+  margin-top: 8px;
+
+  color:
+    var(--text-muted);
+
+  font-size: 0.85em;
+
 }
