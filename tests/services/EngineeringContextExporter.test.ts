@@ -24,21 +24,29 @@ describe("EngineeringContextExporter", () => {
       },
 
       related: [
-        {
-          id: "FILE-001",
-          type: "file",
-          title: "CPU Board",
-          status: "active",
-          tags: [],
-          sourcePath: "Hardware/CPU_Board.kicad_pcb",
-          links: [],
-          modifiedTime: Date.now(),
-          metadata: {},
-          path: "Hardware/CPU_Board.kicad_pcb",
-          extension: "kicad_pcb",
-          fileType: "cad",
-        },
-      ],
+  {
+    entity: {
+      id: "FILE-001",
+      type: "file",
+      title: "CPU Board",
+      status: "active",
+      tags: [],
+      sourcePath: "Hardware/CPU_Board.kicad_pcb",
+      links: [],
+      modifiedTime: Date.now(),
+      metadata: {},
+      path: "Hardware/CPU_Board.kicad_pcb",
+      extension: "kicad_pcb",
+      fileType: "cad",
+    },
+
+    relationship: {
+      sourceId: "CMP-001",
+      targetId: "FILE-001",
+      type: "link",
+    },
+  },
+],
 
     };
 

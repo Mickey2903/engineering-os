@@ -4,91 +4,79 @@
   "aiEndpoint": "",
   "engineering-os-ai": {
     "selectedModel": "qwen2.5-coder:14b",
-    "activeConversationId": "38eaf3da-55ad-4356-8898-cf6e9c627a4b",
+    "activeConversationId": "c1b417c9-82e8-4b6c-a689-6f593986fb3f",
     "conversations": [
       {
-        "id": "e134f9d4-bec9-4fe1-843b-0d6268135780",
-        "title": "\"Welke componenten horen bij de PLC100?\"",
-        "created": 1785749871324,
+        "id": "db578c81-277b-4178-9cf1-bfe7bb7e1864",
+        "title": "wat is cmp_001",
+        "created": 1785780997711,
         "messages": [
           {
             "role": "user",
-            "content": "\"Welke componenten horen bij de PLC100?\""
+            "content": "wat is cmp_001",
+            "contextObjects": []
           },
           {
             "role": "assistant",
-            "content": "De PLC100 is een specifiek model van een Programmeerbare Logic Controller (PLC), dat gebruikt wordt voor het beheer en automatisatie van industriële processen. Hier zijn enkele voorgestelde componenten die mogelijk bij de PLC100 kunnen horen:\n\n  * CPU: De centrale verwerkingsunit die alle instructies uitvoert.\n  * Memory: Het opslagruimte voor programma's en gegevens.\n  * Input/Output (I/O) modules: De interfaces tussen de PLC en de omringende apparatuur, zoals sensoren, motoren en andere processen.\n  * Programming software: Software om het programmeren van de PLC te maken en te configureren.\n\nDe exacte componenten die bij een specifiek model van een PLC horen zijn afhankelijk van de merk- en modellering. Het is altijd aan te raden om de gebruikersdocumentatie of contact op te nemen met het verkoper voor meer informatie over de specifieke configuratie van een PLC100."
+            "content": "I apologize, but I don't have any information about \"CMP-001\" based on the given context. The provided text only includes details for a requirement (REQ-001) regarding the operating voltage of a PLC, and there's no reference to \"CMP-001\" in this snippet.\n\nIf \"CMP-001\" is supposed to be related to REQ-001 or if it's an external reference that should be included, you might need to provide more details about what CMP-001 represents. This could be a component, a method, another requirement, or something else entirely.\n\nCould you please provide more context or clarify what \"CMP-001\" is supposed to refer to? That would help me give you an accurate answer.",
+            "contextObjects": [
+              "REQ-001"
+            ]
           },
           {
             "role": "user",
-            "content": "\"Waarom heeft de PLC100 een aparte power bus?\""
+            "content": "Watiscmp-001",
+            "contextObjects": []
           },
           {
             "role": "assistant",
-            "content": "Het lijkt erop dat je een vraag hebt over waarom een PLC (Programmable Logic Controller) met het modelnummer PLC100 een aparte power bus heeft. Terwijl ik niet direct toegang heb tot specifieke details van alle modellen van PLCs, kan ik uitleg geven over waarom veel moderne PLCs en andere industriële apparaten hun eigene power bus hebben.\n\n### Redenen voor een aparte power bus in PLC's:\n\n1. **Eenheid en Isolatie:**\n   - Een aparte power bus helpt bij het beheren van verschillende subsystemen binnen een machine of een fabriek. Elke bus kan zijn eigen set componenten hebben, wat beter isolatie biedt tussen verschillende functionaliteiten.\n\n2. **Flexibiliteit en Schaalbaarheid:**\n   - Door verschillende power bussen te gebruiken, kan het gemakkelijker zijn om nieuwe apparatuur of onderdelen toe te voegen aan een bestaande systeem zonder dat dit invloed heeft op andere delen van het systeem.\n\n3. **Aantal Leidingen:**\n   - In complexe systemen kunnen de aantal leidingen worden verminderd door een aparte power bus te gebruiken. Dit kan de installatie tijd en kosten verlagen en helpt bij het verbeteren van de overbouwbaarheid van het systeem.\n\n4. **Stroomgebruik:**\n   - Sommige PLCs en andere elektronische apparaten hebben verschillende stroomspecificaties. Door verschillende bussen te gebruiken, kan elke bus zijn eigen stroomverbruik hanteren, wat beter efficiëntie biedt.\n\n5. **Eisen aan Schakeling:**\n   - Sommige apparatuur vereist specifieke schakeling of filteren voor de elektriciteit die door het systeem wordt gebruikt. Een aparte power bus kan dit vereisten gemakkelijker voldoen.\n\n### Conclusie:\nDeze redenen vertegenwoordigen een generiek benadering van waarom PLCs en andere industriële apparaten vaak een aparte power bus hebben. Het specifieke model PLC100 dat je noemt, kan zijn eigen unieke overwegingen hebben, maar de bovenstaande punten kunnen van toepassing zijn. Als je meer specifiek informatie wilt over het PLC100 of specifieke aspecten van het systeem waarin het wordt gebruikt, zou het nuttig zijn om de documentatie of contactopnemer van de fabrikant te raadplegen voor precieze en relevante details."
-          },
-          {
-            "role": "user",
-            "content": "wat is req-001"
-          },
-          {
-            "role": "assistant",
-            "content": "\"req-001\" could potentially refer to various things depending on the context. Without more specific information about which field or project this refers to, it's challenging to provide an exact answer. However, \"req-001\" could be:\n\n1. **A Request Number**: In a business process, \"req-001\" might denote the first request submitted in a series of requests.\n2. **A Requirement**: In software development or project management, it could refer to the first requirement identified for a project.\n3. **An Identifier**: It could be an identifier for a specific document, task, or piece of work.\n\nIf you can provide more context about where \"req-001\" is used, I would be able to give a more accurate explanation."
+            "content": "The provided information is about a PLC100 CPU Module, which is a component with the ID CMP-001. The module is currently active and is part of a project called \"PLC100\". It has a lifecycle status of \"prototype\" and is verified through a test case named TEST-001.\n\nHere's a breakdown of the key details:\n- **ID**: CMP-001\n- **Type**: component\n- **Status**: active\n- **Project ID**: PLC100\n- **Lifecycle**: prototype\n\nThe module's primary function is as the main processing unit. It is related to a test case titled \"Supply voltage test (verification)\", which suggests that this module needs to pass specific voltage tests during its verification process.\n\nIf you have any further questions or need additional information, feel free to ask!",
+            "contextObjects": [
+              "CMP-001"
+            ]
           }
         ]
       },
       {
-        "id": "38eaf3da-55ad-4356-8898-cf6e9c627a4b",
-        "title": "wat is req-001",
-        "created": 1785760568154,
+        "id": "c1b417c9-82e8-4b6c-a689-6f593986fb3f",
+        "title": "Wat is CMP-001?",
+        "created": 1785781856651,
         "messages": [
           {
             "role": "user",
-            "content": "wat is req-001"
+            "content": "Wat is CMP-001?",
+            "contextObjects": []
           },
           {
             "role": "assistant",
-            "content": "It appears that \"req-001\" might be referring to a specific requirement or identifier within a project, system, or documentation you are working with. However, without additional context about the project, system, or document in which this identifier is used, it's challenging to provide more detailed information.\n\nIf you could provide more context, such as:\n\n1. The name of the project\n2. The domain or industry the project belongs to\n3. A brief description of what the requirement is related to\n\nI would be able to give a more accurate explanation of what \"req-001\" might represent."
+            "content": "CMP-001, also known as the PLC100 CPU Module, is a main processing module within a project called \"PLC100\". This component has an active status and is part of the prototype lifecycle. It verifies the supply voltage test (TEST-001) through a link relationship.",
+            "contextObjects": [
+              "CMP-001"
+            ]
           },
           {
             "role": "user",
-            "content": "wat is req-001"
+            "content": "Welke tests horen bij CMP-001?",
+            "contextObjects": []
           },
           {
             "role": "assistant",
-            "content": "REQ-001 is an engineering requirement identified by the ID \"REQ-001\". This requirement pertains to the operating voltage of a particular system or device. The status of this requirement is \"approved\", which indicates that it has been validated and is ready for implementation. \n\nOperating voltage refers to the electrical potential difference across a component or system when it is operational. It's a crucial parameter in electrical engineering as it determines how much power can be delivered to electronic devices, affects their functionality, and influences the choice of materials and components used in their construction.\n\nThe approval status of REQ-001 means that any design or implementation plans related to this requirement have been reviewed and accepted by the relevant stakeholders. This ensures that the final product will meet the specified voltage requirements, ensuring safe and efficient operation."
+            "content": "Bij het object CMP-001, de PLC100 CPU Module, is vermeld dat hij wordt geverifieerd door test TEST-001. Deze test heet \"Supply voltage test\" en heeft als doel om te controleren of het module correct werkt bij spanningen tussen 20.4V en 28.8V.",
+            "contextObjects": [
+              "CMP-001"
+            ]
           },
           {
             "role": "user",
-            "content": "en wat is Test-001"
+            "content": "Welke component implementeert REQ-001?",
+            "contextObjects": []
           },
           {
             "role": "assistant",
-            "content": "Test-001 is an engineering task or activity related to verifying the supply voltage in a system. This type of testing ensures that the power supply meets the required specifications and performs as intended, which is crucial for the proper functioning and reliability of electronic devices or systems."
-          },
-          {
-            "role": "user",
-            "content": "waar is req-001 aan gelinkt"
-          },
-          {
-            "role": "assistant",
-            "content": "Het lijkt erop dat u vraagt waar Req-001 in een specifiek systeem of project gelinkt staat. Requisities zoals deze worden vaak gecentraliseerd beheerd en kunnen door verschillende onderdelen in een systeem of project gebruikt worden.\n\nAls u meer context heeft over het systeem of het project waarin Req-001 is toegepast, kan ik beter helpen om te bepalen waar deze specificatie precies aan gelinkt staat. Als u bijvoorbeeld informatie heeft over:\n\n1. Het specifiek systeem of product waar Requisities worden opgesteld.\n2. De documentatie die Req-001 bevat, zoals een functional specifications document (FSD), requirements traceability matrix (RTM) of een architectuurdocument.\n3. Eventuele projectmanagement tools of configuratiebeheersysteems waarin requisites worden opgevolgd.\n\nMet deze informatie kan ik u meer specifiek helpen om te bepalen waar Req-001 in uw context gelinkt staat."
-          },
-          {
-            "role": "user",
-            "content": "Wat is REQ-001?"
-          },
-          {
-            "role": "assistant",
-            "content": "REQ-001 appears to be a requirement for an operating voltage in an engineering context. However, without additional information, it is difficult to provide more details about this specific requirement. The ID suggests that it has been approved and is likely part of a larger set of requirements or specifications for a product or system."
-          },
-          {
-            "role": "user",
-            "content": "Wat is REQ-001?"
-          },
-          {
-            "role": "assistant",
-            "content": "REQ-001 is a requirement specification document for an engineering project related to a Programmable Logic Controller (PLC). Specifically, it outlines that the PLC must be capable of operating on a 24V DC power supply. This document is part of the PLC100 project and falls under the domain of power management. The priority for this requirement is high, indicating its importance to the overall success of the project.\n\nThe requirement is implemented by another document or specification identified as CMP-001."
+            "content": "Deze vraag vraagt om te weten welke component REQ-001 implementeert. Op basis van de gegeven documentinformatie over REQ-001, wordt het bepaald dat CMP-001 (Component ID 001) implementeert. Deze component is verantwoordelijk voor het uitvoeren van de vereisten die worden gesteld door REQ-001.",
+            "contextObjects": [
+              "REQ-001"
+            ]
           }
         ]
       }

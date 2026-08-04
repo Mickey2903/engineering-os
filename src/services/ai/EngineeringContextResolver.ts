@@ -45,31 +45,8 @@ public constructor(
       question,
     );
 
-
-  console.log(
-    "Context matches:",
-    
-    
-    ranked.map(
-      (object) => ({
-        id: object.objectId,
-        title: object.objectTitle,
-        score: object.score,
-        reason: object.reason,
-      }),
-    ),
-  );
   
-  console.log(
-  "All objects:",
-  this.database.all().map(
-    object => ({
-      id: object.id,
-      title: object.title,
-      path: object.sourcePath,
-    }),
-  ),
-);
+
 
 if (ranked.length > 0) {
 

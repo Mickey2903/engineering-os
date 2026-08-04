@@ -65,16 +65,24 @@ function renderHealthReport(report) {
     `- Entities without incoming links: ${String(report.entitiesWithoutIncomingLinks.length)}`,
     `- Entities without outgoing links: ${String(report.entitiesWithoutOutgoingLinks.length)}`,
     `- Duplicate relationships: ${String(report.duplicateRelationships.length)}`,
+    `- Requirements without implementation: ${String(report.requirementsWithoutImplementation?.length ?? 0)}`,
+    `- Components without verification: ${String(report.componentsWithoutVerification?.length ?? 0)}`,
+    `- Engineering issues: ${String(report.engineeringIssues?.length ?? 0)}`,
     "",
     "---",
     "",
     "## Broken links",
     "",
-    renderBrokenLinks(report.brokenLinks),
+    renderBrokenLinks(
+      report.brokenLinks
+    ),
     "",
     "## Orphan entities",
     "",
-    renderEntities(report.orphanEntities, "No orphan entities found."),
+    renderEntities(
+      report.orphanEntities,
+      "No orphan entities found."
+    ),
     "",
     "## Entities without incoming links",
     "",
@@ -92,7 +100,31 @@ function renderHealthReport(report) {
     "",
     "## Duplicate relationships",
     "",
-    renderDuplicateRelationships(report.duplicateRelationships),
+    renderDuplicateRelationships(
+      report.duplicateRelationships
+    ),
+    "",
+    "## Engineering Quality",
+    "",
+    "### Requirements without implementation",
+    "",
+    renderEntities(
+      report.requirementsWithoutImplementation ?? [],
+      "All requirements have an implementation."
+    ),
+    "",
+    "### Components without verification",
+    "",
+    renderEntities(
+      report.componentsWithoutVerification ?? [],
+      "All components have verification relations."
+    ),
+    "",
+    "### Engineering issues",
+    "",
+    renderEngineeringIssues(
+      report.engineeringIssues ?? []
+    ),
     ""
   ].join("\n");
 }
@@ -108,13 +140,31 @@ function renderEntities(entities, emptyMessage) {
   if (entities.length === 0) {
     return emptyMessage;
   }
-  return entities.map((entity) => `- \`${entity.id}\` \u2014 ${entity.title}`).join("\n");
+  return entities.map(
+    (entity) => `- \`${entity.id}\` \u2014 ${entity.title}`
+  ).join("\n");
 }
 function renderDuplicateRelationships(relationships) {
   if (relationships.length === 0) {
     return "No duplicate relationships found.";
   }
-  return relationships.map(({ sourceId, targetId }) => `- \`${sourceId}\` links multiple times to \`${targetId}\``).join("\n");
+  return relationships.map(
+    ({ sourceId, targetId }) => `- \`${sourceId}\` links multiple times to \`${targetId}\``
+  ).join("\n");
+}
+function renderEngineeringIssues(issues) {
+  if (issues.length === 0) {
+    return "No engineering issues found.";
+  }
+  return issues.map(
+    (issue) => [
+      `### ${issue.entity.id} \u2014 ${issue.entity.title}`,
+      "",
+      `- Type: ${issue.type}`,
+      `- Severity: ${issue.severity}`,
+      `- Message: ${issue.message}`
+    ].join("\n")
+  ).join("\n\n");
 }
 
 // src/services/EngineeringReportService.ts
@@ -285,6 +335,9 @@ var EngineeringDatabase = class {
   clear() {
     this.entitiesById.clear();
     this.idByPath.clear();
+  }
+  get(id) {
+    return this.entitiesById.get(id);
   }
 };
 
@@ -767,7 +820,7 @@ var OllamaProvider = class {
     }
   }
   async generate(request) {
-    const endpoint = `${this.configuration.endpoint ?? this.baseUrl}/api/chat`;
+    const endpoint = (this.configuration.endpoint ?? this.baseUrl).endsWith("/api/chat") ? this.configuration.endpoint ?? this.baseUrl : `${this.configuration.endpoint ?? this.baseUrl}/api/chat`;
     const response = await fetch(
       endpoint,
       {
@@ -887,18 +940,30 @@ var EngineeringAssistantService = class {
             root: context.root,
             documentContent,
             related: [
-              ...context.related,
-              ...related
+              ...context.related.map(
+                (item) => ({
+                  id: item.entity.id,
+                  type: item.entity.type,
+                  title: item.entity.title,
+                  status: item.entity.status,
+                  relationship: item.relationship.type
+                })
+              ),
+              ...related.map(
+                (item) => ({
+                  id: item.id,
+                  type: item.type,
+                  title: item.title,
+                  status: item.status,
+                  relationship: "link"
+                })
+              )
             ]
           }
         );
       }
       engineeringContext = this.contextFormatter.format(
         combinedContexts
-      );
-      console.log(
-        "FINAL ENGINEERING CONTEXT:",
-        engineeringContext
       );
     }
     const prompt = `
@@ -942,27 +1007,6 @@ var EngineeringContextResolver = class {
     const ranked = this.rankingService.rank(
       question
     );
-    console.log(
-      "Context matches:",
-      ranked.map(
-        (object) => ({
-          id: object.objectId,
-          title: object.objectTitle,
-          score: object.score,
-          reason: object.reason
-        })
-      )
-    );
-    console.log(
-      "All objects:",
-      this.database.all().map(
-        (object) => ({
-          id: object.id,
-          title: object.title,
-          path: object.sourcePath
-        })
-      )
-    );
     if (ranked.length > 0) {
       const topMatch = ranked[0];
       return {
@@ -1004,9 +1048,46 @@ var EngineeringContextResolver = class {
   }
 };
 
-// src/models/EngineeringEntity.ts
-var isVerification = (entity) => entity.type === "verification";
-var isAdr = (entity) => entity.type === "adr";
+// src/services/relationships/RelationshipResolver.ts
+var inverseRelationships = {
+  link: void 0,
+  implements: "implemented-by",
+  "implemented-by": "implements",
+  verifies: "verified-by",
+  "verified-by": "verifies",
+  uses: "used-by",
+  "used-by": "uses",
+  contains: "contained-by",
+  "contained-by": "contains",
+  supersedes: "superseded-by",
+  "superseded-by": "supersedes",
+  "documented-by": void 0,
+  "derived-from": "derived-into",
+  "derived-into": "derived-from"
+};
+var RelationshipResolver = class {
+  static inverse(type) {
+    return inverseRelationships[type];
+  }
+};
+
+// src/models/Relationship.ts
+var relationshipTypes = [
+  "link",
+  "implements",
+  "implemented-by",
+  "verifies",
+  "verified-by",
+  "uses",
+  "used-by",
+  "contains",
+  "contained-by",
+  "supersedes",
+  "superseded-by",
+  "documented-by",
+  "derived-from",
+  "derived-into"
+];
 
 // src/services/relationships/RelationshipGraph.ts
 var RelationshipGraph = class {
@@ -1055,20 +1136,60 @@ var RelationshipGraph = class {
   }
 };
 
+// src/models/EngineeringEntity.ts
+var isVerification = (entity) => entity.type === "verification";
+
 // src/services/RelationshipService.ts
+function isRelationshipType(value) {
+  return relationshipTypes.includes(
+    value
+  );
+}
 var RelationshipService = class {
   constructor(database) {
     this.database = database;
   }
   buildGraph() {
+    const entities = this.database.all();
     const relationships = [];
-    for (const entity of this.database.all()) {
+    for (const entity of entities) {
       for (const targetId of entity.links) {
         relationships.push({
           sourceId: entity.id,
           targetId,
           type: "link"
         });
+      }
+      const metadata = entity.metadata;
+      if (metadata) {
+        for (const [relationType, value] of Object.entries(metadata)) {
+          if (!isRelationshipType(relationType)) {
+            continue;
+          }
+          if (!Array.isArray(value)) {
+            continue;
+          }
+          for (const targetId of value) {
+            if (typeof targetId !== "string") {
+              continue;
+            }
+            relationships.push({
+              sourceId: entity.id,
+              targetId,
+              type: relationType
+            });
+            const inverse = RelationshipResolver.inverse(
+              relationType
+            );
+            if (inverse) {
+              relationships.push({
+                sourceId: targetId,
+                targetId: entity.id,
+                type: inverse
+              });
+            }
+          }
+        }
       }
       if (isVerification(entity)) {
         for (const requirementId of entity.requirementIds) {
@@ -1084,20 +1205,10 @@ var RelationshipService = class {
           });
         }
       }
-      if (isAdr(entity) && entity.supersedesId !== void 0) {
-        relationships.push({
-          sourceId: entity.id,
-          targetId: entity.supersedesId,
-          type: "supersedes"
-        });
-        relationships.push({
-          sourceId: entity.supersedesId,
-          targetId: entity.id,
-          type: "superseded-by"
-        });
-      }
     }
-    return new RelationshipGraph(relationships);
+    return new RelationshipGraph(
+      relationships
+    );
   }
 };
 
@@ -1128,26 +1239,40 @@ var EngineeringContextService = class {
     this.database = database;
   }
   generateContext(id) {
-    const root = this.database.all().find(
+    const objects = this.database.all();
+    const graph = new RelationshipService(
+      this.database
+    ).buildGraph();
+    const root = objects.find(
       (object) => object.id === id
     );
     const relatedIds = /* @__PURE__ */ new Set();
-    for (const relationship of this.snapshot.graph.outgoing(id)) {
+    for (const relationship of graph.outgoing(id)) {
       relatedIds.add(
         relationship.targetId
       );
     }
-    for (const relationship of this.snapshot.graph.incoming(id)) {
+    for (const relationship of graph.incoming(id)) {
       relatedIds.add(
         relationship.sourceId
       );
     }
-    const related = this.database.all().filter(
+    const related = objects.filter(
       (object) => relatedIds.has(object.id)
+    );
+    const relatedContexts = related.map(
+      (entity) => ({
+        entity,
+        relationship: {
+          sourceId: root?.id ?? "",
+          targetId: entity.id,
+          type: "link"
+        }
+      })
     );
     return {
       root,
-      related
+      related: relatedContexts
     };
   }
 };
@@ -1157,7 +1282,9 @@ var EngineeringContextExporter = class {
   export(context) {
     const objects = [
       ...context.root ? [context.root] : [],
-      ...context.related
+      ...context.related.map(
+        (relation) => relation.entity
+      )
     ];
     return {
       generatedAt: Date.now(),
@@ -1314,12 +1441,18 @@ var EngineeringContextFormatter = class {
       }
       if (context.related.length > 0) {
         lines.push(
+          "",
           "Related objects:"
         );
         for (const related of context.related) {
           lines.push(
             `- ${related.id}: ${related.title} (${related.type})`
           );
+          if (related.relationship) {
+            lines.push(
+              `  Relation: ${related.relationship}`
+            );
+          }
         }
       }
     }
@@ -1515,13 +1648,61 @@ var TraceabilityRenderer = class {
 
 // src/services/HealthService.ts
 var HealthService = class {
-  constructor(database) {
+  constructor(database, graph) {
     this.database = database;
+    this.graph = graph ?? new RelationshipService(
+      database
+    ).buildGraph();
+  }
+  graph;
+  findRequirementsWithoutImplementation() {
+    return this.database.findByType("requirement").filter(
+      (requirement) => {
+        return this.graph.outgoing(
+          requirement.id
+        ).every(
+          (relationship) => relationship.type !== "implements"
+        );
+      }
+    );
+  }
+  findComponentsWithoutVerification() {
+    return this.database.findByType("component").filter(
+      (component) => {
+        return this.graph.outgoing(
+          component.id
+        ).every(
+          (relationship) => relationship.type !== "verifies"
+        );
+      }
+    );
   }
   findOrphanEntities() {
     const entities = this.database.all();
     const linkedIds = new Set(entities.flatMap((entity) => entity.links));
     return entities.filter((entity) => entity.links.length === 0 && !linkedIds.has(entity.id));
+  }
+  findEngineeringIssues() {
+    const issues = [];
+    for (const entity of this.database.all()) {
+      if (entity.type === "requirement" && entity.links.length === 0) {
+        issues.push({
+          entity,
+          type: "missing-implementation",
+          severity: "high",
+          message: "Requirement has no implementing component."
+        });
+      }
+      if (entity.type === "component" && entity.links.length === 0) {
+        issues.push({
+          entity,
+          type: "missing-verification",
+          severity: "medium",
+          message: "Component has no verification relation."
+        });
+      }
+    }
+    return issues;
   }
   findEntitiesWithoutIncomingLinks() {
     const entities = this.database.all();
@@ -1550,11 +1731,14 @@ var HealthService = class {
   }
   healthReport() {
     return {
+      engineeringIssues: this.findEngineeringIssues(),
       brokenLinks: this.findBrokenLinks(),
       orphanEntities: this.findOrphanEntities(),
       entitiesWithoutIncomingLinks: this.findEntitiesWithoutIncomingLinks(),
       entitiesWithoutOutgoingLinks: this.findEntitiesWithoutOutgoingLinks(),
-      duplicateRelationships: this.findDuplicateRelationships()
+      duplicateRelationships: this.findDuplicateRelationships(),
+      requirementsWithoutImplementation: this.findRequirementsWithoutImplementation(),
+      componentsWithoutVerification: this.findComponentsWithoutVerification()
     };
   }
   findBrokenLinks() {
@@ -1563,6 +1747,177 @@ var HealthService = class {
         entityId: entity.id,
         brokenLinkId
       }))
+    );
+  }
+};
+
+// src/services/relationships/RelationshipImpactResolver.ts
+var impactMap = {
+  implements: "critical",
+  "implemented-by": "critical",
+  verifies: "critical",
+  "verified-by": "critical",
+  uses: "high",
+  "used-by": "high",
+  contains: "medium",
+  "contained-by": "medium",
+  "supersedes": "high",
+  "superseded-by": "high",
+  "documented-by": "low",
+  "derived-from": "medium",
+  "derived-into": "medium",
+  link: "low"
+};
+var RelationshipImpactResolver = class {
+  static resolve(relationship) {
+    return impactMap[relationship];
+  }
+};
+
+// src/services/relationships/RelationshipQueryService.ts
+var RelationshipQueryService = class {
+  constructor(database, graph) {
+    this.database = database;
+    this.graph = graph;
+  }
+  findRelated(objectId, relationshipType) {
+    const relationships = this.graph.outgoing(objectId);
+    return relationships.filter(
+      (relationship) => !relationshipType || relationship.type === relationshipType
+    ).map(
+      (relationship) => this.database.get(
+        relationship.targetId
+      )
+    ).filter(
+      (entity) => entity !== void 0
+    );
+  }
+  findRelatedWithRelationships(objectId, relationshipType) {
+    const relationships = this.graph.outgoing(objectId);
+    return relationships.filter(
+      (relationship) => !relationshipType || relationship.type === relationshipType
+    ).map(
+      (relationship) => {
+        const entity = this.database.findById(
+          relationship.targetId
+        );
+        if (!entity) {
+          return void 0;
+        }
+        return {
+          entity,
+          relationship: relationship.type
+        };
+      }
+    ).filter(
+      (item) => item !== void 0
+    );
+  }
+  findIncoming(objectId, relationshipType) {
+    const relationships = this.graph.incoming(objectId);
+    return relationships.filter(
+      (relationship) => !relationshipType || relationship.type === relationshipType
+    ).map(
+      (relationship) => this.database.get(
+        relationship.sourceId
+      )
+    ).filter(
+      (entity) => entity !== void 0
+    );
+  }
+};
+
+// src/services/ImpactAnalysisService.ts
+var ImpactAnalysisService = class {
+  queryService;
+  database;
+  constructor(database) {
+    this.database = database;
+    const graph = new RelationshipService(
+      database
+    ).buildGraph();
+    this.queryService = new RelationshipQueryService(
+      database,
+      graph
+    );
+  }
+  analyze(entityId) {
+    const entity = this.database.findById(
+      entityId
+    );
+    if (!entity) {
+      return void 0;
+    }
+    const impacted = [];
+    const visited = /* @__PURE__ */ new Set();
+    const queue = [
+      {
+        id: entityId,
+        depth: 0,
+        path: []
+      }
+    ];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) {
+        continue;
+      }
+      if (visited.has(current.id)) {
+        continue;
+      }
+      visited.add(
+        current.id
+      );
+      const relationships = this.queryService.findRelatedWithRelationships(
+        current.id
+      );
+      for (const related of relationships) {
+        if (related.entity.id === entityId) {
+          continue;
+        }
+        impacted.push({
+          entity: related.entity,
+          path: [
+            ...current.path,
+            {
+              sourceId: current.id,
+              targetId: related.entity.id,
+              type: related.relationship
+            }
+          ],
+          depth: current.depth + 1,
+          severity: RelationshipImpactResolver.resolve(
+            related.relationship
+          )
+        });
+        queue.push({
+          id: related.entity.id,
+          depth: current.depth + 1,
+          path: [
+            ...current.path,
+            {
+              sourceId: current.id,
+              targetId: related.entity.id,
+              type: related.relationship
+            }
+          ]
+        });
+      }
+    }
+    return {
+      root: entity,
+      impacted
+    };
+  }
+  findImpactedEntities(entityId) {
+    const result = this.analyze(
+      entityId
+    );
+    if (!result) {
+      return [];
+    }
+    return result.impacted.map(
+      (item) => item.entity
     );
   }
 };
@@ -1711,26 +2066,25 @@ var TraceabilityService = class {
   }
 };
 
-// src/services/ImpactAnalysisService.ts
-var ImpactAnalysisService = class {
-  traceability;
-  constructor(database) {
-    this.traceability = new TraceabilityService(database);
-  }
-  findImpactedEntities(entityId) {
-    return this.traceability.findReachableEntities(entityId);
-  }
-};
-
 // src/services/EngineeringServices.ts
 var EngineeringServices = class {
   traceability;
   health;
   impactAnalysis;
   constructor(database) {
-    this.traceability = new TraceabilityService(database);
-    this.health = new HealthService(database);
-    this.impactAnalysis = new ImpactAnalysisService(database);
+    const graph = new RelationshipService(
+      database
+    ).buildGraph();
+    this.traceability = new TraceabilityService(
+      database
+    );
+    this.health = new HealthService(
+      database,
+      graph
+    );
+    this.impactAnalysis = new ImpactAnalysisService(
+      database
+    );
   }
 };
 
@@ -1989,6 +2343,8 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
   loadingEl;
   lastQuestion;
   lastContextObjectId;
+  lastContextObjects = [];
+  isTemporaryConversation = false;
   constructor(leaf, app, assistant, contextResolver, storage, statusService) {
     super(leaf);
     this.statusService = statusService;
@@ -2177,18 +2533,14 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
     this.selectedModel = savedModel;
     await this.loadModels();
     await this.storage.deleteEmptyConversations();
-    const activeConversationId = await this.storage.getActiveConversationId();
-    if (activeConversationId) {
-      this.conversationId = activeConversationId;
-    } else {
-      const conversation = await this.storage.createConversation(
-        "Engineering AI Session"
-      );
-      this.conversationId = conversation.id;
-      await this.storage.setActiveConversationId(
-        conversation.id
-      );
-    }
+    const conversation = await this.storage.createConversation(
+      "Engineering AI Session"
+    );
+    this.conversationId = conversation.id;
+    this.isTemporaryConversation = true;
+    await this.storage.setActiveConversationId(
+      conversation.id
+    );
     this.contextEl = aiSettings.createEl(
       "div",
       {
@@ -2254,6 +2606,9 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
         if (response2.context) {
           this.updateAIContext(
             response2.context
+          );
+          this.lastContextObjects = response2.context.objects.map(
+            (object) => object.id
           );
         }
       } catch (error) {
@@ -2340,6 +2695,15 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
       this.setLoading(false);
     }
   }
+  async renderStoredConversation(conversation) {
+    this.messagesEl?.empty();
+    for (const message of conversation.messages) {
+      await this.renderMessage(
+        message.role,
+        message.content
+      );
+    }
+  }
   async openConversation(id) {
     const conversations = await this.storage.getConversations();
     const conversation = conversations.find(
@@ -2348,14 +2712,14 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
     if (!conversation) {
       return;
     }
-    this.messagesEl?.empty();
     this.conversationId = conversation.id;
-    for (const message of conversation.messages) {
-      await this.renderMessage(
-        message.role,
-        message.content
-      );
-    }
+    this.isTemporaryConversation = false;
+    await this.storage.setActiveConversationId(
+      conversation.id
+    );
+    await this.renderStoredConversation(
+      conversation
+    );
   }
   async loadConversations() {
     if (!this.conversationsEl) {
@@ -2479,6 +2843,7 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
       "Engineering AI Session"
     );
     this.conversationId = conversation.id;
+    this.isTemporaryConversation = true;
     await this.storage.setActiveConversationId(
       conversation.id
     );
@@ -2490,9 +2855,6 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
     await this.loadConversations();
   }
   async addMessage(role, content) {
-    this.conversation[role === "user" ? "addUserMessage" : "addAssistantMessage"](
-      content
-    );
     await this.renderMessage(
       role,
       content
@@ -2510,10 +2872,16 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
     if (role === "user" && conversation.messages.length === 0) {
       conversation.title = content.substring(0, 40);
     }
+    if (this.isTemporaryConversation && role === "user") {
+      this.isTemporaryConversation = false;
+    }
     conversation.messages.push(
       {
         role,
-        content
+        content,
+        contextObjects: role === "assistant" && this.lastContextObjectId ? [
+          this.lastContextObjectId
+        ] : []
       }
     );
     await this.storage.saveConversation(
@@ -2522,6 +2890,11 @@ var EngineeringAIChatView = class extends import_obsidian3.ItemView {
     await this.loadConversations();
   }
   async onClose() {
+    if (this.isTemporaryConversation && this.conversationId) {
+      await this.storage.deleteConversation(
+        this.conversationId
+      );
+    }
   }
 };
 

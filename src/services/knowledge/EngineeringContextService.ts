@@ -1,7 +1,7 @@
 import type { EngineeringKnowledgeGraphSnapshot } from "../../models/EngineeringKnowledgeGraphSnapshot";
 import type { EngineeringContext } from "../../models/EngineeringContext";
-
-
+import type { RelationshipType } from "../../models/Relationship";
+import { RelationshipService } from "../RelationshipService";
 import type { EngineeringDatabase } from "../../database/EngineeringDatabase";
 
 
@@ -20,26 +20,32 @@ export class EngineeringContextService {
     id: string,
   ): EngineeringContext {
 
-   const root =
-  this.database.all()
-    .find(
-      (object) =>
-        object.id === id,
-    );
+   const objects =
+    this.database.all();
+    
+    const graph =
+  new RelationshipService(
+    this.database,
+  ).buildGraph();
+    
+    const root =
+  objects.find(
+    (object) => object.id === id,
+  );
 
 
     const relatedIds =
       new Set<string>();
 
 
-    for (const relationship of this.snapshot.graph.outgoing(id)) {
+    for (const relationship of graph.outgoing(id)) {
       relatedIds.add(
         relationship.targetId,
       );
     }
 
 
-    for (const relationship of this.snapshot.graph.incoming(id)) {
+    for (const relationship of graph.incoming(id)) {
       relatedIds.add(
         relationship.sourceId,
       );
@@ -47,16 +53,37 @@ export class EngineeringContextService {
 
 
     const related =
-  this.database.all().filter(
+  objects.filter(
         (object) =>
           relatedIds.has(object.id),
       );
 
 
-    return {
-      root,
-      related,
-    };
+    const relatedContexts =
+  related.map(
+    (entity) => ({
+      entity,
+
+      relationship: {
+        sourceId:
+          root?.id ?? "",
+
+        targetId:
+          entity.id,
+
+        type:
+  "link" as RelationshipType,
+      },
+    }),
+  );
+
+
+return {
+  root,
+
+  related:
+    relatedContexts,
+};
   }
 
 }

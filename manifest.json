@@ -1,7 +1,7 @@
 {
   "id": "engineering-os",
   "name": "Engineering OS",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.0",
   "description": "Markdown-first engineering platform for requirements, verification and traceability.",
   "author": "Michael Vingerhoets",

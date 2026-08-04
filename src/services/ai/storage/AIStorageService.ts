@@ -38,6 +38,8 @@ export interface AIMessage {
   content:
     string;
 
+  contextObjects?: string[];
+
 }
 
 

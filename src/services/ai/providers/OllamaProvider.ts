@@ -85,7 +85,9 @@ const response =
   ): Promise<AIResponse> {
 
     const endpoint =
-  `${this.configuration.endpoint ?? this.baseUrl}/api/chat`;
+  (this.configuration.endpoint ?? this.baseUrl).endsWith("/api/chat")
+    ? this.configuration.endpoint ?? this.baseUrl
+    : `${this.configuration.endpoint ?? this.baseUrl}/api/chat`;
 
     const response =
       await fetch(

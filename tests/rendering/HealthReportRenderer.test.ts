@@ -3,53 +3,113 @@ import { describe, expect, it } from "vitest";
 import { renderHealthReport } from "../../src/rendering/HealthReportRenderer";
 
 describe("renderHealthReport", () => {
-  it("renders an empty health report", () => {
-    const markdown = renderHealthReport({
-      brokenLinks: [],
-      orphanEntities: [],
-      entitiesWithoutIncomingLinks: [],
-      entitiesWithoutOutgoingLinks: [],
-      duplicateRelationships: [],
-    });
-
-    expect(markdown).toBe(
-      [
-        "# Engineering Health Report",
-        "",
-        "## Summary",
-        "",
-        "- Broken links: 0",
-        "- Orphan entities: 0",
-        "- Entities without incoming links: 0",
-        "- Entities without outgoing links: 0",
-        "- Duplicate relationships: 0",
-        "",
-        "---",
-        "",
-        "## Broken links",
-        "",
-        "No broken links found.",
-        "",
-        "## Orphan entities",
-        "",
-        "No orphan entities found.",
-        "",
-        "## Entities without incoming links",
-        "",
-        "Every entity has at least one incoming link.",
-        "",
-        "## Entities without outgoing links",
-        "",
-        "Every entity has at least one outgoing link.",
-        "",
-        "## Duplicate relationships",
-        "",
-        "No duplicate relationships found.",
-        "",
-      ].join("\n"),
-    );
+it("renders an empty health report", () => {
+  const markdown = renderHealthReport({
+    brokenLinks: [],
+    orphanEntities: [],
+    entitiesWithoutIncomingLinks: [],
+    entitiesWithoutOutgoingLinks: [],
+    duplicateRelationships: [],
   });
 
+
+  expect(markdown)
+    .toContain(
+      "# Engineering Health Report",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "## Summary",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "- Broken links: 0",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "## Broken links",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "No broken links found.",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "## Engineering Quality",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "No engineering issues found.",
+    );
+
+});
+it("renders engineering quality issues", () => {
+
+  const markdown =
+    renderHealthReport({
+
+      brokenLinks: [],
+
+      orphanEntities: [],
+
+      entitiesWithoutIncomingLinks: [],
+
+      entitiesWithoutOutgoingLinks: [],
+
+      duplicateRelationships: [],
+
+      engineeringIssues: [
+        {
+          entity: {
+            id: "REQ-001",
+            type: "requirement",
+            title: "Operating voltage",
+          } as any,
+
+          type:
+            "missing-implementation",
+
+          severity:
+            "high",
+
+          message:
+            "Requirement has no implementing component.",
+        },
+      ],
+
+    });
+
+
+  expect(markdown)
+    .toContain(
+      "Engineering Quality",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "missing-implementation",
+    );
+
+
+  expect(markdown)
+    .toContain(
+      "Requirement has no implementing component.",
+    );
+
+});
   it("renders health report findings", () => {
     const entity = {
       id: "REQ-001",

@@ -8,52 +8,66 @@ export class EngineeringContextExporter {
     context: EngineeringContext,
   ): EngineeringContextExport {
 
+
     const objects = [
       ...(context.root
         ? [context.root]
         : []),
 
-      ...context.related,
+      ...context.related.map(
+        (relation) =>
+          relation.entity,
+      ),
     ];
 
 
     return {
-  generatedAt:
-    Date.now(),
 
-  ...(context.root
-    ? {
-        rootId: context.root.id,
-        rootType: context.root.type,
-      }
-    : {}),
+      generatedAt:
+        Date.now(),
 
-  objects:
-    objects.map(
-  (object) => ({
-    id:
-      object.id,
 
-    type:
-      object.type,
+      ...(context.root
+        ? {
+            rootId:
+              context.root.id,
 
-    title:
-      object.title,
+            rootType:
+              context.root.type,
+          }
 
-    status:
-      object.status,
+        : {}),
 
-    sourcePath:
-      object.sourcePath,
 
-    tags:
-      object.tags,
+      objects:
+        objects.map(
+          (object) => ({
 
-    metadata:
-      object.metadata,
-  }),
-),
-};
+            id:
+              object.id,
+
+            type:
+              object.type,
+
+            title:
+              object.title,
+
+            status:
+              object.status,
+
+            sourcePath:
+              object.sourcePath,
+
+            tags:
+              object.tags,
+
+            metadata:
+              object.metadata,
+
+          }),
+        ),
+
+    };
 
   }
 

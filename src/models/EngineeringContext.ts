@@ -1,4 +1,5 @@
 import type { EngineeringEntity } from "./EngineeringEntity";
+import type { Relationship } from "./Relationship";
 
 
 export interface EngineeringContext {
@@ -6,7 +7,20 @@ export interface EngineeringContext {
   readonly root:
     EngineeringEntity | undefined;
 
+
   readonly related:
-    readonly EngineeringEntity[];
+    readonly EngineeringContextRelation[];
+
+}
+
+
+export interface EngineeringContextRelation {
+
+  readonly entity:
+    EngineeringEntity;
+
+
+  readonly relationship:
+    Relationship;
 
 }

@@ -1,3 +1,6 @@
+import type { RelationshipType } from "../../../models/Relationship";
+
+
 export interface FormattableEngineeringContext {
 
   root: {
@@ -26,83 +29,92 @@ export interface FormattableEngineeringContext {
 
     status?: string;
 
+    relationship?: RelationshipType;
+
   }[];
 
 }
-
-
 
 export class EngineeringContextFormatter {
 
 
   public format(
-    contexts: FormattableEngineeringContext[],
-  ): string {
+  contexts: FormattableEngineeringContext[],
+): string {
 
 
-    if (contexts.length === 0) {
+  if (contexts.length === 0) {
 
-      return "No engineering context available.";
+    return "No engineering context available.";
+
+  }
+
+
+  const lines: string[] = [];
+
+
+  lines.push(
+    "Relevant engineering context:",
+  );
+
+
+  for (
+    const context of contexts
+  ) {
+
+
+    lines.push(
+      "",
+      `Object: ${context.root.title}`,
+      `ID: ${context.root.id}`,
+      `Type: ${context.root.type}`,
+    );
+
+
+    if (context.root.status) {
+
+      lines.push(
+        `Status: ${context.root.status}`,
+      );
 
     }
 
 
-    const lines: string[] = [];
-
-
-    lines.push(
-      "Relevant engineering context:",
-    );
-
-
-    for (
-      const context of contexts
-    ) {
-
+    if (context.documentContent) {
 
       lines.push(
         "",
-        `Object: ${context.root.title}`,
-        `ID: ${context.root.id}`,
-        `Type: ${context.root.type}`,
+        "Document content:",
+        context.documentContent,
+      );
+
+    }
+
+
+    if (
+      context.related.length > 0
+    ) {
+
+      lines.push(
+        "",
+        "Related objects:",
       );
 
 
-      if (context.root.status) {
-
-  lines.push(
-    `Status: ${context.root.status}`,
-  );
-
-}
-
-
-if (context.documentContent) {
-
-  lines.push(
-    "",
-    "Document content:",
-    context.documentContent,
-  );
-
-}
-
-
-      if (
-        context.related.length > 0
+      for (
+        const related of context.related
       ) {
 
+
         lines.push(
-          "Related objects:",
+          `- ${related.id}: ${related.title} (${related.type})`,
         );
 
 
-        for (
-          const related of context.related
-        ) {
+        if (related.relationship) {
 
           lines.push(
-            `- ${related.id}: ${related.title} (${related.type})`,
+            `  Relation: ${related.relationship}`,
           );
 
         }
@@ -111,9 +123,11 @@ if (context.documentContent) {
 
     }
 
-
-    return lines.join("\n");
-
   }
+
+
+  return lines.join("\n");
+
+}
 
 }

@@ -7,7 +7,7 @@ import type { EngineeringContextResolver } from "./EngineeringContextResolver";
 import type { EngineeringContextFormatter } from "./memory/EngineeringContextFormatter";
 import type { EngineeringDocumentContentService } 
 from "../knowledge/EngineeringDocumentContentService";
-
+import type { RelationshipType } from "../../models/Relationship";
 export class EngineeringAssistantService {
 
 public constructor(
@@ -90,9 +90,44 @@ for (const object of resolved.objects) {
     documentContent,
 
     related: [
-      ...context.related,
-      ...related,
-    ],
+  ...context.related.map(
+    (item) => ({
+      id:
+        item.entity.id,
+
+      type:
+        item.entity.type,
+
+      title:
+        item.entity.title,
+
+      status:
+        item.entity.status,
+
+      relationship:
+  item.relationship.type as RelationshipType,
+    }),
+  ),
+
+  ...related.map(
+    (item) => ({
+      id:
+        item.id,
+
+      type:
+        item.type,
+
+      title:
+        item.title,
+
+      status:
+        item.status,
+
+       relationship:
+      "link" as RelationshipType,
+    }),
+  ),
+],
   },
 );
 
@@ -103,11 +138,6 @@ for (const object of resolved.objects) {
   this.contextFormatter.format(
     combinedContexts,
   );
-  console.log(
-  "FINAL ENGINEERING CONTEXT:",
-  engineeringContext,
-);
-
 }
 
 

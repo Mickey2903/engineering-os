@@ -36,4 +36,11 @@ export class EngineeringDatabase {
     this.entitiesById.clear();
     this.idByPath.clear();
   }
+  public get(
+  id: string,
+): EngineeringEntity | undefined {
+
+  return this.entitiesById.get(id);
+
+}
 }

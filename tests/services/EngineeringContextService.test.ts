@@ -107,9 +107,10 @@ describe("EngineeringContextService", () => {
       .toHaveLength(1);
 
 
-    expect(context.related[0]?.id)
-      .toBe("FILE-001");
-
+    expect(context.related[0]?.entity.id)
+  .toBe("FILE-001");
+expect(context.related[0]?.relationship.type)
+  .toBe("link");
   });
 
 

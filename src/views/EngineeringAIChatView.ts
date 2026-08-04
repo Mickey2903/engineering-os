@@ -12,7 +12,10 @@ import {
 } from "../services/ai/EngineeringContextResolver";
 
 import type { EngineeringAssistantService } from "../services/ai/EngineeringAssistantService";
-import { AIStorageService } from "../services/ai/storage/AIStorageService";
+import {
+  AIStorageService,
+  type AIConversation,
+} from "../services/ai/storage/AIStorageService";
 import type { AIStatusService } from "../services/ai/AIStatusService";
 export const ENGINEERING_AI_VIEW_TYPE =
   "engineering-ai-chat";
@@ -71,9 +74,12 @@ private lastQuestion:
   private lastContextObjectId:
   string | undefined;
   
+ private lastContextObjects:
+  string[] = []; 
   
+ private isTemporaryConversation =
+  false;
   
- 
   public constructor(
   leaf: WorkspaceLeaf,
   app: App,
@@ -462,33 +468,27 @@ this.selectedModel =
 
 await this.loadModels();
 await this.storage.deleteEmptyConversations();
-const activeConversationId =
-  await this.storage.getActiveConversationId();
 
 
-if (activeConversationId) {
-
-  this.conversationId =
-    activeConversationId;
-
-}
-else {
-
-  const conversation =
-    await this.storage.createConversation(
-      "Engineering AI Session",
-    );
-
-
-  this.conversationId =
-    conversation.id;
-
-
-  await this.storage.setActiveConversationId(
-    conversation.id,
+const conversation =
+  await this.storage.createConversation(
+    "Engineering AI Session",
   );
 
-}
+
+this.conversationId =
+  conversation.id;
+
+
+this.isTemporaryConversation =
+  true;
+
+
+await this.storage.setActiveConversationId(
+  conversation.id,
+);
+
+
 
 this.contextEl =
 aiSettings.createEl(
@@ -513,6 +513,7 @@ aiSettings.createEl(
     cls:
       "plc-eng-ai-messages",
   });
+  
 
 
    this.inputEl =
@@ -610,6 +611,13 @@ if (response.context) {
   this.updateAIContext(
     response.context,
   );
+
+
+  this.lastContextObjects =
+    response.context.objects.map(
+      (object) =>
+        object.id,
+    );
 
 }
 
@@ -772,7 +780,24 @@ finally {
 
 }
 
-  private async openConversation(
+private async renderStoredConversation(
+  conversation: AIConversation,
+): Promise<void> {
+
+  this.messagesEl?.empty();
+
+
+  for (const message of conversation.messages) {
+
+    await this.renderMessage(
+      message.role,
+      message.content,
+    );
+
+  }
+
+}
+private async openConversation(
   id: string,
 ): Promise<void> {
 
@@ -792,20 +817,22 @@ finally {
   }
 
 
-  this.messagesEl?.empty();
+this.conversationId =
+  conversation.id;
 
 
-  this.conversationId =
-    conversation.id;
+this.isTemporaryConversation =
+  false;
 
 
-  for (const message of conversation.messages) {
-await this.renderMessage(
-  message.role,
-  message.content,
+await this.storage.setActiveConversationId(
+  conversation.id,
 );
 
-  }
+
+await this.renderStoredConversation(
+  conversation,
+);
   
 
 }
@@ -1053,7 +1080,9 @@ private async createNewConversation(): Promise<void> {
   this.conversationId =
   conversation.id;
 
-
+this.isTemporaryConversation =
+  true;
+  
 await this.storage.setActiveConversationId(
   conversation.id,
 );
@@ -1078,25 +1107,15 @@ private async addMessage(
   content: string,
 ): Promise<void> {
 
-
-  this.conversation[
-    role === "user"
-      ? "addUserMessage"
-      : "addAssistantMessage"
-  ](
-    content,
-  );
-
-
   await this.renderMessage(
     role,
     content,
   );
 
+if (!this.conversationId) {
 
-  if (!this.conversationId) {
-    return;
-  }
+  return;
+}
 
 
   const conversations =
@@ -1108,7 +1127,6 @@ private async addMessage(
       (item) =>
         item.id === this.conversationId,
     );
-
 
   if (!conversation) {
     return;
@@ -1126,11 +1144,28 @@ private async addMessage(
 
 }
 
+if (
+  this.isTemporaryConversation
+  && role === "user"
+) {
 
+  this.isTemporaryConversation =
+    false;
+
+}
 conversation.messages.push(
   {
     role,
+
     content,
+
+    contextObjects:
+      role === "assistant"
+        && this.lastContextObjectId
+        ? [
+            this.lastContextObjectId,
+          ]
+        : [],
   },
 );
 
@@ -1146,6 +1181,17 @@ await this.loadConversations();
 
   public async onClose(): Promise<void> {
 
+  if (
+    this.isTemporaryConversation
+    && this.conversationId
+  ) {
+
+    await this.storage.deleteConversation(
+      this.conversationId,
+    );
+
   }
+
+}
 
 }

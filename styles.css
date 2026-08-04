@@ -156,27 +156,23 @@
 
 
 .plc-eng-ai-conversations {
-
-  display: grid;
-
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-
 
   overflow-y: auto;
 
-  flex: 1;
+  align-items: stretch;
 
-  min-height: 0;
-
+  justify-content: flex-start;
 }
 
 
 .plc-eng-ai-conversation-item {
-
   display: flex;
-
   gap: 6px;
 
+  flex: 0 0 auto;
 }
 
 
@@ -568,3 +564,10 @@
   margin-bottom: 4px;
 
 }
+
+.plc-eng-ai-history {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
